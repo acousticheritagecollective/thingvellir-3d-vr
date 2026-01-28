@@ -23,6 +23,28 @@ pre-literate society.
 The work is part of an ongoing artistic and acoustic research project developed by
 The Acoustic Heritage Collective.
 
+## How to Play
+
+The Thingvellir 3D–VR experience can be accessed either through a desktop web browser
+or using a VR headset. Interaction and controls differ slightly depending on the mode.
+
+### Desktop (Web Browser)
+
+- The player is controlled using the **keyboard arrow keys**.
+- Use the **arrow keys** to move forward, backward, and rotate within the environment.
+- Press **ESC** to pause the experience.
+
+For the best experience, the use of **headphones** is recommended.
+
+### VR Mode
+
+- Make sure that the **system audio output is assigned to the VR headset** before launching the experience.
+- The player moves using the **joystick / thumbstick on the VR controllers**.
+- Movement and orientation are controlled through the headset and controllers, allowing for immersive navigation of the environment.
+
+For optimal spatial audio perception, ensure that the VR headset is properly fitted and calibrated.
+
+
 ## License
 
 ### Code
