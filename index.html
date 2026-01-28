@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Thingvellir 3D - Interactive Experience</title>
+  <link rel="icon" type="image/x-icon" href="ahc.ico">
+
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        font-family: sans-serif;
+      }
+      canvas {
+        display: block;
+      }
+  /* Styles specifically for the intro panel */
+  #instructions {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 66%;
+min-width:360px;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    text-align: left;
+    font-size: 15px;
+    cursor: pointer;
+    padding: 40px;
+    box-sizing: border-box;
+    line-height: 1.3;
+    overflow-y: auto;
+  }
+
+  #instructions h1 {
+    margin: 0 0 12px 0;
+    font-size: 24px;
+    color: #ffd700;
+  }
+
+  #instructions p {
+    margin: 0 0 12px 0;
+  }
+
+  #instructions .controls {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+
+  #instructions .start {
+    margin-top: 18px;
+    display: inline-block;
+    background: rgba(255,255,255,0.08);
+    padding: 10px 14px;
+    border-radius: 8px;
+    color: #fff;
+    font-weight: 600;
+  }
+
+  /* pequeño hint visual */
+  #instructions small {
+    display: block;
+    margin-top: 8px;
+    opacity: 0.80;
+    font-size: 10px;
+  }
+
+#infoText {
+  position: absolute;
+  bottom: 10%;
+  left: 5%;
+  width: 40%;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 25px 30px;
+  border-radius: 12px;
+  box-sizing: border-box;
+  text-align: left;
+  font-size: 14px;
+  line-height: 1.6;
+  display: none; /* se muestra solo al activarse */
+  animation: fadeIn 0.6s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+#infoText h2 {
+  font-size: 22px;
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #ffd700;
+}
+
+#infoText img {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+#infoText p {
+  margin: 0 0 10px 0;
+}
+
+#infoText .hint {
+  font-size: 14px;
+  opacity: 0.7;
+  margin-top: 10px;
+  text-align: right;
+}
+
+/* Animación de aparición */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* === SONÓMETRO === */
+#soundMeter {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 15%;
+  background: rgba(0, 0, 0, 0.65);
+  color: white;
+  padding: 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  z-index: 20;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+
+#soundMeterTitle {
+  font-weight: bold;
+  margin-bottom: 6px;
+  color: #ffd700;
+}
+
+#soundMeterBar {
+  width: 100%;
+  height: 10px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 5px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+#soundMeterFill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(
+    90deg,
+    #4caf50,
+    #ffeb3b,
+    #ff5722
+  );
+  transition: width 0.1s linear;
+}
+
+#soundMeterValue {
+  text-align: right;
+  font-size: 15px;
+  opacity: 0.85;
+}
+
+#spectrum {
+  margin-top: 6px;
+  width: 100%;
+  height: 40px;
+}
+
+/* === CONTROLES HUD === */
+#controlsHUD {
+  position: fixed;
+  bottom: 160px; /* queda encima del sonómetro */
+  right: 20px;
+  width: 15%;
+  background: rgba(0, 0, 0, 0.55);
+  color: white;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  z-index: 20;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.35);
+  line-height: 1.4;
+}
+
+#controlsHUD strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #ffd700;
+  font-size: 12px;
+}
+
+#controlsHUD em {
+  font-style: normal;
+  font-weight: 600;
+  color: #9fd3ff;
+}
+
+/* === CONSOLE PRINT === */
+#consolePrint {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.15);
+  font-family: monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #9effa0;
+  max-height: 120px;
+  overflow-y: auto;
+  opacity: 0.85;
+}
+
+.consoleLine {
+  white-space: pre-wrap;
+}
+
+#loadingBar {
+  width: 100%;
+  height: 8px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+#loadingBarFill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #6fd6ff, #00aaff);
+  transition: width 0.2s ease;
+}
+
+    #footer-logo {
+      position: absolute;
+      bottom: 1%;
+      left: 15%;
+      transform: translateX(-50%);
+      width: 80%;
+      max-width: 340px;
+      height: auto;
+  opacity: 0.75;
+
+    </style>
+
+    <!-- Import map for Three.js -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+      }
+    }
+    </script>
+  </head>
+
+  <body>
+   <div id="instructions" role="button" aria-label="Click to start the experience" tabindex="0">
+  <div>
+    <h1>🇹​​​​​🇭​​​​​🇮​​​​​🇳​​​​​🇬​​​​​🇻​​​​​🇪​​​​​🇱​​​​​🇱​​​​​🇮​​​​​🇷​​​​ 🇦​​​​​🇨​​​​​🇴​​​​​🇺​​​​​🇸​​​​​🇹​​​​​🇮​​​​​🇨​​​​​🇸​​​​​<br>An Interactive and Immersive Experience</h1>
+
+   <p>
+After the Settlement of Iceland (around 800 AD), people decided to create a general assembly — the <em>Alþing</em>. The chosen site, <strong>Þingvellir</strong>, was well located and rich in resources such as pasture, water, and firewood. Its open plains and surrounding cliffs also made it a suitable place for large gatherings, marking the beginning of the Icelandic Commonwealth (930–1262).
+</p>
+
+<p>
+In this period, Icelandic society relied deeply on orality. Laws, agreements, and stories were transmitted by word of mouth. Once a year, thousands gathered at <strong>Þingvellir</strong> to debate, resolve disputes, and make collective decisions. The central figure of the assembly was the Law Speaker, who proclaimed the laws of the Commonwealth out loud across the valley.
+</p>
+
+<p>
+In recent years, The Acoustic Heritage Collective has conducted a hybrid archeoacoustic study in <strong>Þingvellir</strong>. This didactic and schematic gamified experience allows users to explore the site’s acoustics while uncovering key factors that contribute to its unique acoustic footprint. It presents the main findings of the research, revealing how the characteristics of the landscape may have influenced the acoustic performance of one of the most significant meeting places in Icelandic history.
+</p>
+
+<!-- 🖥️ Console print -->
+<div id="consolePrint">
+  <div class="consoleLine">[system] waiting for user input…</div>
+</div>
+
+<div id="loadingBar">
+  <div id="loadingBarFill"></div>
+</div>
+
+      <div class="start">Click to enter — begin exploring</div>
+      
+<small><strong>For Browser</strong></small>Use of<strong> Headphones</strong> recomended.<small>
+<small><strong>For VR</strong></small>
+<small>Use sound system to <strong>VR device</strong></small>
+
+    </div>
+
+
+
+  </div>
+</div>
+
+    <!-- 🟡 Nuevo texto dinámico -->
+    <div id="infoText"></div>
+
+    <!-- Script principal -->
+    <script type="module" src="main.js"></script>
+
+<!-- 🎮 CONTROLES HUD
+<div id="controlsHUD">
+  <strong>Controls</strong>
+  <p>
+    Move: <em>W A S D</em> / Arrows<br>
+    Look: mouse<br>
+    Pause: <em>ESC</em><br>
+    Close info: <em>Space</em>
+  </p>
+ </div> -->
+
+<!-- 🔊 SONÓMETRO -->
+ <div id="soundMeter">
+  <div id="soundMeterTitle">Background Noise SPL</div>
+
+  <div class="meterBar">
+    <div class="meterFill" id="soundMeterFill"></div>
+  </div>
+
+  <div id="soundMeterValue">–32.0 dB</div>
+
+  <canvas id="spectrum" width="160" height="40"></canvas>
+</div>
+
+<img id="footer-logo" src="logo-footer.png" alt="Footer Logo">
+
+
+  </body>
+</html>
