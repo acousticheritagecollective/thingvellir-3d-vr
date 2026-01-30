@@ -31,11 +31,6 @@ let subtitleDiv;
 let isXR = false;
 let xrRig;
 
-// ✅ VR Info Panel System
-let vrInfoPanel = null;
-let vrInfoVisible = false;
-let vrInfoMesh = null;
-
 // Sistema de puntos narrativos
 const pointPositions = [
   { id: 1, position: new THREE.Vector3(51.791, -13, -289.290) },
@@ -151,9 +146,9 @@ function init() {
     // ✅ VR: Duplicar altura de cámara
     xrRig.position.y = 3.2;
 
-    // camera.remove(listener); // ✅ COMENTADO: listener se queda en camera para rotación VR
-    // xrRig.add(listener); // ✅ COMENTADO: listener se queda en camera para rotación VR
-    console.log('ðŸŽ§ Listener stays in camera for VR head rotation tracking');
+    camera.remove(listener);
+    xrRig.add(listener);
+    console.log('ðŸŽ§ Listener moved to xrRig');
 
     const ctx = listener.context;
     if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
@@ -173,7 +168,7 @@ function init() {
       controls.unlock();
     }
 
-    camera.getWorldPosition(lastStepPos); // ✅ VR: posición mundial inicial
+    lastStepPos.copy(xrRig.position);
     
     setTimeout(() => {
       try {
@@ -205,8 +200,8 @@ function init() {
     // ✅ Restaurar altura original
     xrRig.position.y = 1.6;
     
-    // xrRig.remove(listener); // ✅ COMENTADO: listener nunca salió de camera
-    // camera.add(listener); // ✅ COMENTADO: listener siempre estuvo en camera
+    xrRig.remove(listener);
+    camera.add(listener);
     console.log('ðŸŽ§ Listener returned to camera');
     
     console.log(`âŒ XR session ended after ${duration} seconds`);
@@ -514,13 +509,19 @@ function init() {
     }
   }
   
-  createLabel("Falla d’Almannagjá: Basalt, baixa absorció acústica (α 1 kHz: 0,03) — actua no només com a superfície reflectant, sinó també com a difusor acústic.", new THREE.Vector3(10, 30, -116));
-  createLabel("Öxarárfoss: Cascada i riu, font de soroll blanc amb SPL elevat — el so més dominant del lloc, que redueix la intel·ligibilitat de la parla a mesura que t’hi acostes", new THREE.Vector3(0, 10, -440));
-  createLabel("Lögberg: Posició elevada, protegida per formacions rocoses en una configuració semblant a un amfiteatre. Des d’aquí, la veu del portaveu de la llei es projectava clarament a través de les planes. La superfície porosa coberta de molsa millorava la claredat de la parla.", new THREE.Vector3(15, 20, -284.800));
-  createLabel("Àrea del públic: Es creu que prop de 4.500 oients s’ubicaven en aquesta zona. El baix nivell de soroll de fons és un element clau per a una bona intel·ligibilitat de la parla (NC: 35–40)", new THREE.Vector3(70, -2, -310));
-  createLabel("Escolta de la Saga: Segueix els sis diamants rosa (1→6). Escolta com sona el Capítol 141 des de diferents posicions al camp de l'assemblea.", new THREE.Vector3(67.861, 7, -262.059));
-  createLabel("Fauna sonora: 52 espècies d’ocells viuen al voltant del llac Þingvallavatn. Escolta el somorgollaire gros, l’ànec d’ulls d’or i l’ànec arlequí", new THREE.Vector3(15, 17, -195));
-  createLabel("Escolta l’ECO: travessa el globus!", new THREE.Vector3(8, 15, -110));
+  createLabel("Almannagjá Rift: Basalt, low acoustic absorption (α 1KHz: 0.03) — acts not only a reflective surface but also as an acoustic diffusor.", new THREE.Vector3(10, 30, -116));
+
+  createLabel("Öxarárfoss: Waterfall and river, high SPL white-noise source type — the most dominant sound of the site reduces speech intelligibility as you get closer.", new THREE.Vector3(0, 10, -440));
+
+  createLabel("Lögberg: Elevated position, sheltered by rock formations in an amphitheater-like setting. From here, the Law Speaker's voice projected clearly across the plains. The porous, moss-covered surface improved speech clarity.", new THREE.Vector3(15, 20, -284.800));
+
+  createLabel("Audience Area: it is believed that near 4500 listeners were located in this area. Low Background-Noise Noise is a key element for good speech intelligibility (NC:35-40).", new THREE.Vector3(70, 6, -310));
+
+  createLabel("Saga Listening Points: Follow the pink diamonds to experience Brennu-Njáls Saga spoken just as it might have sounded a thousand years ago. Find all six positions to complete your acoustic journey.", new THREE.Vector3(67.861, 3, -262.059));
+  
+createLabel("52 bird species live around Lake Þingvallavatn. Listen for the great northern diver, the barrow's goldeneye, and the harlequin duck.", new THREE.Vector3(15, 17, -195));
+
+  createLabel("Listen to the ECHO: Pass through the balloon!", new THREE.Vector3(8, 15, -110));
 
   controls = new PointerLockControls(camera, document.body);
 
@@ -674,150 +675,14 @@ function hideInfoText() {
   }, 1000);
 }
 
-// ✅ VR INFO PANEL FUNCTIONS
-function showVRInfoText(title, text) {
-  if (vrInfoVisible) return; // Ya hay un panel visible
-  
-  // Crear canvas para el texto
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = 1024;
-  canvas.height = 768;
-  
-  // Fondo semi-transparente
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  
-  // Título
-  ctx.fillStyle = '#FFD700';
-  ctx.font = 'bold 48px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText(title, canvas.width / 2, 80);
-  
-  // Texto principal
-  ctx.fillStyle = 'white';
-  ctx.font = '28px Arial';
-  ctx.textAlign = 'left';
-  
-  // Wrap text
-  const maxWidth = canvas.width - 100;
-  const lineHeight = 40;
-  const words = text.split(' ');
-  let line = '';
-  let y = 150;
-  
-  for (let n = 0; n < words.length; n++) {
-    const testLine = line + words[n] + ' ';
-    const metrics = ctx.measureText(testLine);
-    if (metrics.width > maxWidth && n > 0) {
-      ctx.fillText(line, 50, y);
-      line = words[n] + ' ';
-      y += lineHeight;
-    } else {
-      line = testLine;
-    }
-  }
-  ctx.fillText(line, 50, y);
-  
-  // Instrucción de cierre
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-  ctx.font = '24px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('Press A or X button to close', canvas.width / 2, canvas.height - 40);
-  
-  // Crear textura y material
-  const texture = new THREE.CanvasTexture(canvas);
-  const material = new THREE.MeshBasicMaterial({ 
-    map: texture, 
-    transparent: true,
-    side: THREE.DoubleSide
-  });
-  
-  // Crear mesh del panel
-  const geometry = new THREE.PlaneGeometry(3, 2.25);
-  vrInfoMesh = new THREE.Mesh(geometry, material);
-  
-  // Posicionar panel frente al jugador
-  const playerPos = new THREE.Vector3();
-  camera.getWorldPosition(playerPos); // ✅ Posición mundial
-  const cameraDir = new THREE.Vector3(0, 0, -1);
-  
-  try {
-    const xrCamera = renderer.xr.getCamera();
-    if (xrCamera && xrCamera.quaternion) {
-      cameraDir.applyQuaternion(xrCamera.quaternion);
-    }
-  } catch (e) {}
-  
-  cameraDir.y = 0;
-  cameraDir.normalize();
-  
-  vrInfoMesh.position.copy(playerPos);
-  vrInfoMesh.position.y += 1.5; // A la altura de los ojos
-  vrInfoMesh.position.addScaledVector(cameraDir, 2.5); // 2.5m frente al jugador
-  
-  // Hacer que el panel mire al jugador
-  vrInfoMesh.lookAt(playerPos.x, vrInfoMesh.position.y, playerPos.z);
-  
-  scene.add(vrInfoMesh);
-  vrInfoVisible = true;
-  
-  console.log('📋 VR Info panel shown:', title);
-}
-
-function hideVRInfoText() {
-  if (vrInfoMesh) {
-    scene.remove(vrInfoMesh);
-    vrInfoMesh.geometry.dispose();
-    vrInfoMesh.material.map.dispose();
-    vrInfoMesh.material.dispose();
-    vrInfoMesh = null;
-  }
-  vrInfoVisible = false;
-  console.log('❌ VR Info panel hidden');
-}
-
-function checkVRButtonPress() {
-  if (!isXR || !vrInfoVisible) return;
-  
-  // Cerrar si el jugador se aleja del panel
-  if (vrInfoMesh) {
-    const playerPos = new THREE.Vector3();
-    camera.getWorldPosition(playerPos); // ✅ Posición mundial
-    const panelDist = playerPos.distanceTo(vrInfoMesh.position);
-    if (panelDist > 5) { // Cerrar si se aleja más de 5 metros
-      hideVRInfoText();
-      return;
-    }
-  }
-  
-  try {
-    const session = renderer.xr.getSession();
-    if (!session || !session.inputSources) return;
-    
-    for (const source of session.inputSources) {
-      if (!source.gamepad) continue;
-      
-      const buttons = source.gamepad.buttons;
-      // Botón A (index 4) o X (index 5) en controles VR
-      if (buttons[4]?.pressed || buttons[5]?.pressed) {
-        hideVRInfoText();
-        return;
-      }
-    }
-  } catch (error) {
-    console.error('VR button check error:', error);
-  }
-}
-
 function showSubtitle(pointId) {
   const subtitles = {
-    1: "Un dia, la gent va anar al Lögberg i els caps estaven disposats de manera que Ásgrímur Elliða-Grímsson i Gissur el Blanc, Guðmundur el Poderós i Snorri goði estaven dalt al Lögberg, mentre que els homes de l'Est estaven a baix davant d'ells. Mörður Valgarðsson estava al costat del seu cunyat Gissur el Blanc. Mörður era el més eloqüent de tots els homes. Llavors Gissur va dir que havia de proclamar l'acusació d'homicidi i li va demanar que parlés prou alt perquè tothom pogués escoltar-lo bé. Mörður va cridar testimonis.",
-    2: "Crido testimonis,-va dir-, que proclamo una acusació legal d'agressió contra Flosi Þórðarson perquè va atacar Helgi Njálsson en aquell lloc on Flosi Þórðarson va atacar Helgi Njálsson i li va infligir una ferida cerebral o una ferida corporal o una ferida de medul·la que es va convertir en una ferida mortal, i Helgi va morir per això. Declaro que per aquesta causa ha de ser condemnat com a culpable, fora de la llei, sense dret a refugi, sense dret a transport, sense dret a ajuda en cap forma de salvament. Declaro confiscats tots els seus béns, la meitat per a mi i la meitat per als homes del quarter que tenen dret a prendre la multa segons la llei. Proclamo aquesta acusació d'homicidi al tribunal del quarter on el cas ha de ser portat segons la llei. Proclamo una proclamació legal. Proclamo això en veu audible al Lögberg. Proclamo això per a la persecució aquest estiu i per a la condemna plena contra Flosi Þórðarson. Proclamo el cas confiat a Þorgeir Þórisson.",
-    3: "Al Lögberg es va fer un gran rebombori perquè havia parlat bé i amb valentia. Mörður va prendre la paraula una segona vegada.",
-    4: "Us crido testimonis,- va dir-, que proclamo una acusació contra Flosi Þórðarson perquè va ferir Helgi Njálsson amb una ferida cerebral o una ferida corporal o una ferida de medul·la, aquella ferida que es va convertir en mortal, i Helgi va morir per això, en aquell lloc on Flosi Þórðarson va atacar Helgi Njálsson en un primer atac legal. Et declaro, Flosi, que per aquesta causa has de ser condemnat com a culpable, fora de la llei, sense dret a refugi, sense dret a transport, sense dret a ajuda en cap forma de salvament. Declaro confiscats tots els teus béns, la meitat per a mi i la meitat per als homes del quarter que tenen dret a prendre la multa segons la llei. Proclamo aquesta acusació al tribunal del quarter on el cas ha de ser portat segons la llei. Proclamo una proclamació legal. Proclamo això en veu audible al Lögberg. Proclamo això per a la persecució aquest estiu i per a la condemna plena contra Flosi Þórðarson. Proclamo el cas confiat a Þorgeir Þórisson.",
-    5: "Þorgeir skorargeir es va posar dret i va cridar testimonis: Crido testimonis que proclamo una acusació contra Glúmur Hildisson perquè va agafar foc i el va encendre i el va portar dins la casa a Bergþórshvoll quan van cremar a dins Njál Þorgeirsson i Bergþóra Skarphéðinsdóttir i tots els homes que van cremar allà dins. Declaro que per aquesta causa ha de ser condemnat com a culpable, fora de la llei, sense dret a refugi, sense dret a transport, sense dret a ajuda en cap forma de salvament. Declaro confiscats tots els seus béns, la meitat per a mi i la meitat per als homes del quarter que tenen dret a prendre la multa segons la llei. Proclamo aquesta acusació al tribunal del quarter on el cas ha de ser portat segons la llei. Proclamo una proclamació legal. Proclamo això en veu audible al Lögberg. Proclamo això per a la persecució aquest estiu i per a la condemna plena contra Glúmur Hildisson",
-    6: "Kári Sölmundarson va acusar Kol Þorsteinsson i Gunnar Lambason i Grani Gunnarsson, i la gent va dir que havia parlat extraordinàriament bé. Þorleifur krákur va acusar tots els fills de Sigfús, i el seu germà Þorgrímur el Gran va acusar Móðólfur Ketilsson i Lambi Sigurðarson i Hróar Hámundarson, germà de Leiðólfur el Fort. Ásgrímur Elliða-Grímsson va acusar Leiðólfur i Þorsteinn Geirleifsson, Arni Kolsson i Grímur el Vermell, i tots van parlar bé. Després altres homes van proclamar les seves acusacions i això va durar fins tard. Llavors la gent va tornar als seus estands"
+    1: "One day, people went to the Lögberg, and the chieftains were arranged so that Ásgrímur Elliða-Grímsson and Gissur the White, Guðmundur the Powerful and Snorri goði were up at the Lögberg, while the Easterners stood below in front of them. Mörður Valgarðsson stood beside his brother-in-law Gissur the White. Mörður was the most eloquent of all men. Then Gissur said he should proclaim the manslaughter charge and asked him to speak loud enough so that everyone could hear well. Mörður called witnesses.",
+    2: "I call witnesses - he said - that I proclaim a legal charge of assault against Flosi Þórðarson because he attacked Helgi Njálsson at that place where Flosi Þórðarson attacked Helgi Njálsson and inflicted upon him a brain wound or a body wound or a marrow wound that became a fatal wound, and Helgi died from it. I declare that for this cause he must be found guilty, an outlaw without right to shelter, without right to transport, without right to aid in any form of rescue. I declare all his property forfeited, half to me and half to the quarter men who have the right to take the fine according to law. I proclaim this manslaughter charge to the Quarter Court where the case must be brought according to law. I proclaim a lawful proclamation. I proclaim this in audible voice at the Lögberg. I proclaim this for prosecution this summer and for full conviction against Flosi Þórðarson. I proclaim the case entrusted to Þorgeir Þórisson.",
+    3: "At the Lögberg there was great commotion because he had spoken well and boldly -Mörður spoke a second time.",
+    4: "I call you as witnesses -he said- that I proclaim a charge against Flosi Þórðarson because he wounded Helgi Njálsson with a brain wound or a body wound or a marrow wound, that wound which became fatal, and Helgi died from it, at that place where Flosi Þórðarson attacked Helgi Njálsson in a lawful first assault. I declare you, Flosi, must be found guilty for this cause, an outlaw without right to shelter, without right to transport, without right to aid in any form of rescue. I declare all your property forfeited, half to me and half to the quarter men who have the right to take the fine according to law. I proclaim this charge to the Quarter Court where the case must be brought according to law. I proclaim a lawful proclamation. I proclaim this in audible voice at the Lögberg. I proclaim this for prosecution this summer and for full conviction against Flosi Þórðarson. I proclaim the case entrusted to Þorgeir Þórisson.",
+    5: "Then Mörður sat down. Flosi listened carefully and said not a word. Þorgeir skorargeir stood up and called witnesses: I call witnesses that I proclaim a charge against Glúmur Hildisson because he took fire and kindled it and carried it into the house at Bergþórshvoll when they burned inside Njál Þorgeirsson and Bergþóra Skarphéðinsdóttir and all the men who burned inside there. I declare that for this cause he must be found guilty, an outlaw without right to shelter, without right to transport, without right to aid in any form of rescue. I declare all his property forfeited, half to me and half to the quarter men who have the right to take the fine according to law. I proclaim this charge to the Quarter Court where the case must be brought according to law. I proclaim a lawful proclamation. I proclaim this in audible voice at the Lögberg. I proclaim this for prosecution this summer and for full conviction against Glúmur Hildisson",
+    6: "Kári Sölmundarson prosecuted Kol Þorsteinsson and Gunnar Lambason and Grani Gunnarsson, and people said he spoke extraordinarily well. Þorleifur krákur prosecuted all of Sigfús's sons, and his brother Þorgrímur the Great prosecuted Móðólfur Ketilsson and Lambi Sigurðarson and Hróar Hámundarson, brother of Leiðólfur the Strong. Ásgrímur Elliða-Grímsson prosecuted Leiðólfur and Þorsteinn Geirleifsson, Arni Kolsson and Grímur the Red, and they all spoke well. Then other men proclaimed their charges and this went on late into the day. Then people went home to their booths"
   };
   
   const subtitleText = subtitles[pointId] || "Subtitle text not available";
@@ -846,11 +711,11 @@ function onWindowResize() {
 function getSurfaceUnderPlayer() {
   if (!terrain) return null;
   
-  // ✅ VR: Usar posición mundial de cámara
+  // ✅ VR: Ajustar origen del raycast considerando la altura del xrRig
   let origin;
   if (isXR) {
-    origin = new THREE.Vector3();
-    camera.getWorldPosition(origin); // Posición absoluta en el mundo
+    origin = xrRig.position.clone();
+    origin.y += 1.6; // Añadir offset desde el suelo del rig
   } else {
     origin = camera.position.clone();
   }
@@ -948,13 +813,9 @@ function animate() {
 
   if (terrain) {
     try {
-      let rayOrigin;
-      if (isXR) {
-        rayOrigin = new THREE.Vector3();
-        camera.getWorldPosition(rayOrigin); // Posición mundial de la cámara
-      } else {
-        rayOrigin = controls ? controls.getObject().position : camera.position;
-      }
+      const rayOrigin = isXR 
+        ? xrRig.position.clone().add(new THREE.Vector3(0, 3.2, 0)) // ✅ VR: ajustado a nueva altura
+        : (controls ? controls.getObject().position : camera.position);
       raycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
       const intersects = raycaster.intersectObject(terrain, true);
       if (intersects.length > 0) {
@@ -971,14 +832,9 @@ function animate() {
     } catch (error) {}
   }
 
-  // ✅ VR: obtener posición mundial de la cámara (que está dentro de xrRig)
-  let listenerPos;
-  if (isXR) {
-    listenerPos = new THREE.Vector3();
-    camera.getWorldPosition(listenerPos); // Posición absoluta en el mundo
-  } else {
-    listenerPos = controls && controls.getObject() ? controls.getObject().position : camera.position;
-  }
+  const listenerPos = isXR 
+    ? xrRig.position.clone().add(new THREE.Vector3(0, 3.2, 0)) // ✅ VR: ajustado a nueva altura
+    : (controls && controls.getObject() ? controls.getObject().position : camera.position);
 
   if (riverSound && riverSound.buffer) {
     const dist = listenerPos.distanceTo(riverSource.position);
@@ -1015,9 +871,7 @@ function animate() {
       modelSound.play();
       console.log('ðŸ”¥ Geisir sound started');
       if (!infoVisible && !isXR) {
-        showInfoText("FET #1: La naturalesa geològica de Þingvellir", "Þingvellir és avui un Parc Nacional i Patrimoni Mundial de la UNESCO. Però més enllà de la seva bellesa, aquest lloc se situa literalment sobre una fractura: la dorsal mesoatlàntica. Aquí es troba un dels pocs indrets del planeta on es pot caminar entre les plaques tectòniques nord-americana i eurasiàtica, que se separen només uns pocs mil·límetres cada any. El paisatge que observem — la falla i els penya-segats d’Almannagjá i Heiðargjá — és el resultat de mil·lennis de moviments tectònics, erupcions i col·lapses que han configurat la seva identitat acústica.", "images/fact1.jpg");
-      } else if (isXR && !vrInfoVisible) {
-        showVRInfoText("FET #1: La naturalesa geològica de Þingvellir", "Þingvellir és avui un Parc Nacional i Patrimoni Mundial de la UNESCO. Però més enllà de la seva bellesa, aquest lloc se situa literalment sobre una fractura: la dorsal mesoatlàntica. Aquí es troba un dels pocs indrets del planeta on es pot caminar entre les plaques tectòniques nord-americana i eurasiàtica, que se separen només uns pocs mil·límetres cada any. El paisatge que observem — la falla i els penya-segats d’Almannagjá i Heiðargjá — és el resultat de mil·lennis de moviments tectònics, erupcions i col·lapses que han configurat la seva identitat acústica.");
+        showInfoText("FACT #1: The Geological Nature of Þingvellir", "Þingvellir is today a National Park and a UNESCO World Heritage Site. But beyond its beauty, this place quite literally lies on a fracture — the Mid-Atlantic Ridge. Here, it is one of the few places on Earth where you can walk between the North American and Eurasian tectonic plates, which drift apart by only a few millimeters each year. The landscape we see — the rift, and the cliffs of Almannagjá and Heiðargjá — is the result of millennia of tectonic movements, eruptions, and collapses that shape its ACOUSTIC IDENTITY.", "images/fact1.jpg");
       }
     } else if (dist >= 10 && modelSound.isPlaying) {
       modelSound.stop();
@@ -1026,30 +880,24 @@ function animate() {
   }
 
   // === BOOK INFO (PROXIMIDAD + TEXTO) ===
-  const bookPosition = new THREE.Vector3(66.861, -11, -275.059);
-  const distbook = listenerPos.distanceTo(bookPosition);
-  
-  if (distbook < 10 && !bookInfoShown && !isXR && controls && controls.isLocked) {
-    showInfoText("FET #4: Les Sagas Islandeses a Þingvellir", "Històries medievals que van preservar la memòria d'aquest lloc i la seva gent. Escrites segles després dels esdeveniments que descriuen, ofereixen una visió de com funcionava l'Alþing — i de com el so i la paraula eren centrals a la cultura islandesa. A la Brennu-Njáls Saga, una frase apareix una i altra vegada — més de 14 vegades: Lýsi ek í heyranda hljóði að Lögbergi (Declaro això amb veu audible a la Roca de la Llei.) Això no era només una formalitat. Era un requisit legal. Per fer oficial alguna cosa, s'havia de proclamar en veu alta, al Lögberg, on tothom pogués escoltar. Les sagas recordaven no només el que es deia, sinó on i com es deia. El so importava. Ser escoltat importava.", "images/book.jpeg");
-    bookInfoShown = true;
-    console.log('✅ Book info shown');
-  } else if (distbook < 10 && !bookInfoShown && isXR && !vrInfoVisible) {
-    showVRInfoText("FET #4: Les Sagas Islandeses a Þingvellir", "Històries medievals que van preservar la memòria d'aquest lloc i la seva gent. Escrites segles després dels esdeveniments que descriuen, ofereixen una visió de com funcionava l'Alþing — i de com el so i la paraula eren centrals a la cultura islandesa. A la Brennu-Njáls Saga, una frase apareix una i altra vegada — més de 14 vegades: Lýsi ek í heyranda hljóði að Lögbergi (Declaro això amb veu audible a la Roca de la Llei.) Això no era només una formalitat. Era un requisit legal. Per fer oficial alguna cosa, s'havia de proclamar en veu alta, al Lögberg, on tothom pogués escoltar. Les sagas recordaven no només el que es deia, sinó on i com es deia. El so importava. Ser escoltat importava.");
-    bookInfoShown = true;
-    console.log('✅ Book info shown (VR)');
-  } else if (distbook >= 10) {
-    bookInfoShown = false;
+  if (!isXR && controls && controls.isLocked) {
+    const bookPosition = new THREE.Vector3(66.861, -11, -275.059);
+    const distbook = listenerPos.distanceTo(bookPosition);
+    
+    if (distbook < 10 && !bookInfoShown) {
+      showInfoText("FACT #4: The Icelandic Sagas at Þingvellir", "Medieval stories that preserved the memory of this place and its people. Written centuries after the events they describe, they offer glimpses into how the AlÞing functioned and how central sound and speech were to Icelandic culture. In Brennu-NjÃ¡ls Saga, one phrase appears over and over — more than 14 times: Lýsi ek í heyranda hljóði að Lögbergi (I declare this in audible voice at the Law Rock.) This wasn't just a formality. It was a legal requirement. To make something official, it had to be proclaimed aloud, at Lögberg, where everyone could hear. The sagas remembered not just what was said, but where and how it was said. Sound mattered. Being heard mattered.", "images/book.jpeg");
+      bookInfoShown = true;
+      console.log('âœ… Book info shown');
+    } else if (distbook >= 10) {
+      bookInfoShown = false;
+    }
   }
-
 
 
   if (balloonSource && balloonSound && balloonSound.buffer) {
     const dist = listenerPos.distanceTo(balloonSource.position);
-    if (dist < 10 && !balloonInfoShown && !isXR) {
-      showInfoText("FET #2: Petjada acústica única d’aquest lloc",  "Quan el globus ha esclatat, el so ha rebotat contra les parets de la falla, s’ha absorbit en la molsa i s’ha escampat per les planes. Aquest eco és únic de Þingvellir — cap altre lloc sona exactament igual. Sigui on siguis, sempre es pot percebre un eco característic causat per les formacions geològiques que modelen l’acústica i la percepció auditiva d’aquest espai. Per als antics islandesos, això significava que les veus es propagaven. Un orador situat a Lögberg podia ser escoltat clarament per milers de persones.", "images/fact2.jpg");
-      balloonInfoShown = true;
-    } else if (dist < 10 && !balloonInfoShown && isXR && !vrInfoVisible) {
-      showVRInfoText("FET #2: Petjada acústica única d’aquest lloc",  "Quan el globus ha esclatat, el so ha rebotat contra les parets de la falla, s’ha absorbit en la molsa i s’ha escampat per les planes. Aquest eco és únic de Þingvellir — cap altre lloc sona exactament igual. Sigui on siguis, sempre es pot percebre un eco característic causat per les formacions geològiques que modelen l’acústica i la percepció auditiva d’aquest espai. Per als antics islandesos, això significava que les veus es propagaven. Un orador situat a Lögberg podia ser escoltat clarament per milers de persones.");
+    if (dist < 10 && !balloonInfoShown) {
+      showInfoText("FACT #2: Þingvellir distinctive echo", "Due to its very distinctive geographical landscape, Þingvellir has a highly recognizable acoustic footprint. No matter where you are, you can always perceive a characteristic echo caused by the geological formations that shape the acoustics and auditory perception of this place.", "images/fact2.jpg");
       balloonInfoShown = true;
     } else if (dist >= 10) {
       balloonInfoShown = false;
@@ -1063,16 +911,12 @@ function animate() {
     }
   }
 
-  if (speakerSource) {
+  if (!isXR && controls && controls.isLocked && speakerSource) {
     const distspeaker = listenerPos.distanceTo(speakerSource.position);
-    if (distspeaker < 7 && !speakerInfoShown && !isXR && controls && controls.isLocked) {
-      showInfoText("FET #3: L'oralitat da Lögberg (Law Rock) 930-1262", "Durant més de 300 anys (930–1262), Islàndia no va tenir rei, ni lleis escrites, ni edificis permanents. En lloc d’això, milers de persones es reunien aquí anualment a l’Alþing. La figura central era el portaveu de la llei, que memoritzava tot el codi legal d’Islàndia i el recitava en veu alta al llarg de tres anys, en parts regulars cada estiu. La justícia no s’escrivia. Es pronunciava, s’escoltava i es recordava. L’acústica de Þingvellir ho feia possible. Per què funcionava? El nivell excepcionalment baix de soroll ambiental, l’absorció acústica de la superfície coberta de molsa i del públic, juntament amb la posició elevada del portaveu de la llei — que permetia que les ones sonores directes arribessin sense obstacles a tots els oients — feien de Lögberg un entorn ideal per a la intel·ligibilitat de la parla.", "images/fact3.jpg");
+    if (distspeaker < 7 && !speakerInfoShown) {
+      showInfoText("FACT #3: Orality at Lögberg (Law Rock) 930-1262", "At the Lögberg (Law Rock) and the nearby plains, Icelanders gathered to proclaim laws and deliver judgments. The central figure was the Law Speaker, who memorized Iceland's entire legal code and recited it aloud over three years, in regular increments each summer. Justice wasn't written. It was spoken, heard, and remembered. Þingvellir's acoustics made this possible. Why did this work?  The exceptionally low ambient noise, the acoustic absorption of the moss-covered surface and the audience, together with the elevated position of the Law Speaker — which allowed unobstructed direct sound rays to reach all listeners — made Lögberg an ideal setting for speech intelligibility.", "images/fact3.jpg");
       speakerInfoShown = true;
       console.log('âœ… Speaker info shown');
-    } else if (distspeaker < 7 && !speakerInfoShown && isXR && !vrInfoVisible) {
-      showVRInfoText("FET #3: L'oralitat da Lögberg (Law Rock) 930-1262", "Durant més de 300 anys (930–1262), Islàndia no va tenir rei, ni lleis escrites, ni edificis permanents. En lloc d’això, milers de persones es reunien aquí anualment a l’Alþing. La figura central era el portaveu de la llei, que memoritzava tot el codi legal d’Islàndia i el recitava en veu alta al llarg de tres anys, en parts regulars cada estiu. La justícia no s’escrivia. Es pronunciava, s’escoltava i es recordava. L’acústica de Þingvellir ho feia possible. Per què funcionava? El nivell excepcionalment baix de soroll ambiental, l’absorció acústica de la superfície coberta de molsa i del públic, juntament amb la posició elevada del portaveu de la llei — que permetia que les ones sonores directes arribessin sense obstacles a tots els oients — feien de Lögberg un entorn ideal per a la intel·ligibilitat de la parla.");
-      speakerInfoShown = true;
-      console.log('✅ Speaker info shown (VR)');
     } else if (distspeaker >= 7) {
       speakerInfoShown = false;
     }
@@ -1147,22 +991,13 @@ function animate() {
     }
   }
 
-  let playerPos;
-  if (isXR) {
-    playerPos = new THREE.Vector3();
-    camera.getWorldPosition(playerPos); // ✅ Posición mundial
-  } else {
-    playerPos = controls ? controls.getObject().position : camera.position;
-  }
+  const playerPos = isXR ? xrRig.position : (controls ? controls.getObject().position : camera.position);
   const moved = playerPos.distanceTo(lastStepPos);
   if (moved > STEP_DISTANCE) {
     const surface = getSurfaceUnderPlayer();
     if (surface) playFootstep(surface);
     lastStepPos.copy(playerPos);
   }
-
-  // Check VR button press to close info panel
-  checkVRButtonPress();
 
   renderer.render(scene, camera);
 }

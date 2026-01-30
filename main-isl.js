@@ -23,13 +23,18 @@ let modelSound, modelSource;
 let balloonAudioPlayed = false;
 let balloonInfoShown = false;
 let speakerInfoShown = false;
-let bookInfoShown = false; // ← NUEVA
+let bookInfoShown = false; // â† NUEVA
 let raycaster = new THREE.Raycaster();
 let infoVisible = false;
 let infoTextDiv;
 let subtitleDiv;
 let isXR = false;
 let xrRig;
+
+// ✅ VR Info Panel System
+let vrInfoPanel = null;
+let vrInfoVisible = false;
+let vrInfoMesh = null;
 
 // Sistema de puntos narrativos
 const pointPositions = [
@@ -42,7 +47,7 @@ const pointPositions = [
 ];
 const pointActivated = [false, false, false, false, false, false];
 const pointSounds = [];
-const speakerPosition = new THREE.Vector3(3, 1, -289); // Posición para audios narrativos
+const speakerPosition = new THREE.Vector3(3, 1, -289); // PosiciÃ³n para audios narrativos
 
 // CONSTANTES GLOBALES
 const NOISE_FLOOR = -32;
@@ -117,7 +122,7 @@ function init() {
   camera.position.set(0, 1.6, 0);
 
   xrRig = new THREE.Group();
-  xrRig.position.set(0, 1.6, 0);
+  xrRig.position.set(0, 1.6, 0); // Mantener altura inicial para no afectar desktop
   const cameraGroup = new THREE.Group();
   cameraGroup.add(camera);
   xrRig.add(cameraGroup);
@@ -139,66 +144,72 @@ function init() {
   scene.add(xrController);
 
   renderer.xr.addEventListener('sessionstart', () => {
-    console.log('🚀 VR SESSION STARTING...');
+    console.log('ðŸš€ VR SESSION STARTING...');
     xrSessionStartTime = Date.now();
     isXR = true;
 
-    camera.remove(listener);
-    xrRig.add(listener);
-    console.log('🎧 Listener moved to xrRig');
+    // ✅ VR: Duplicar altura de cámara
+    xrRig.position.y = 3.2;
+
+    // camera.remove(listener); // ✅ COMENTADO: listener se queda en camera para rotación VR
+    // xrRig.add(listener); // ✅ COMENTADO: listener se queda en camera para rotación VR
+    console.log('ðŸŽ§ Listener stays in camera for VR head rotation tracking');
 
     const ctx = listener.context;
     if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
-      console.log('⚠️ AudioContext state:', ctx.state);
+      console.log('âš ï¸ AudioContext state:', ctx.state);
       ctx.resume().then(() => {
-        console.log('🔊 AudioContext resumed, state:', ctx.state);
-      }).catch(err => console.error('❌ Audio resume error:', err));
+        console.log('ðŸ”Š AudioContext resumed, state:', ctx.state);
+      }).catch(err => console.error('âŒ Audio resume error:', err));
     } else {
-      console.log('✅ AudioContext already running, state:', ctx.state);
+      console.log('âœ… AudioContext already running, state:', ctx.state);
     }
 
     const instructions = document.getElementById('instructions');
     if (instructions) instructions.style.display = 'none';
 
     if (controls && controls.isLocked) {
-      console.log('🔓 Unlocking PointerLock...');
+      console.log('ðŸ”“ Unlocking PointerLock...');
       controls.unlock();
     }
 
-    lastStepPos.copy(xrRig.position);
+    camera.getWorldPosition(lastStepPos); // ✅ VR: posición mundial inicial
     
     setTimeout(() => {
       try {
-        console.log('🎵 Starting audio playback...');
+        console.log('ðŸŽµ Starting audio playback...');
         if (riverSound && riverSound.buffer && !riverSound.isPlaying) {
           riverSound.play();
-          console.log('🌊 River sound started');
+          console.log('ðŸŒŠ River sound started');
         }
         if (birds1 && birds1.buffer && !birds1.isPlaying) {
           birds1.play();
-          console.log('🐦 Birds1 started');
+          console.log('ðŸ¦ Birds1 started');
         }
         if (birds2 && birds2.buffer && !birds2.isPlaying) {
           birds2.play();
-          console.log('🐦 Birds2 started');
+          console.log('ðŸ¦ Birds2 started');
         }
       } catch (err) {
-        console.error('❌ Audio playback error:', err);
+        console.error('âŒ Audio playback error:', err);
       }
     }, 1000);
 
-    console.log('✅ XR SESSION ACTIVE');
+    console.log('âœ… XR SESSION ACTIVE');
   });
 
   renderer.xr.addEventListener('sessionend', () => {
     const duration = ((Date.now() - xrSessionStartTime) / 1000).toFixed(2);
     isXR = false;
     
-    xrRig.remove(listener);
-    camera.add(listener);
-    console.log('🎧 Listener returned to camera');
+    // ✅ Restaurar altura original
+    xrRig.position.y = 1.6;
     
-    console.log(`❌ XR session ended after ${duration} seconds`);
+    // xrRig.remove(listener); // ✅ COMENTADO: listener nunca salió de camera
+    // camera.add(listener); // ✅ COMENTADO: listener siempre estuvo en camera
+    console.log('ðŸŽ§ Listener returned to camera');
+    
+    console.log(`âŒ XR session ended after ${duration} seconds`);
     if (riverSound && riverSound.isPlaying) riverSound.pause();
     if (modelSound && modelSound.isPlaying) modelSound.pause();
     if (birds1 && birds1.isPlaying) birds1.pause();
@@ -356,7 +367,7 @@ function init() {
     speakerSource.position.set(3, 1, -289);
     speakerSource.scale.set(1, 1.2, 1);
     scene.add(speakerSource);
-    console.log('✅ Speaker model loaded at Lögberg');
+    console.log('âœ… Speaker model loaded at LÃ¶gberg');
   });
 
   loader.load('book.glb', (book) => {
@@ -369,12 +380,12 @@ function init() {
   }, (error) => console.error('Error loading book model:', error));
 
   // === CARGAR AUDIOS NARRATIVOS ===
-  console.log('🎵 Starting to load narrative audios...');
+  console.log('ðŸŽµ Starting to load narrative audios...');
   
-  const narrativeSpeakerSource = new THREE.Object3D(); // ✅ Nombre diferente
+  const narrativeSpeakerSource = new THREE.Object3D(); // âœ… Nombre diferente
   narrativeSpeakerSource.position.copy(speakerPosition);
   scene.add(narrativeSpeakerSource);
-  console.log('📍 Narrative audio source positioned at:', speakerPosition);
+  console.log('ðŸ“ Narrative audio source positioned at:', speakerPosition);
   
   const narrativeAudioLoader = new THREE.AudioLoader();
   for (let i = 1; i <= 6; i++) {
@@ -390,16 +401,16 @@ function init() {
         speakerSound.setVolume(2);
         attachToSoundMeter(speakerSound);
         narrativeSpeakerSource.add(speakerSound);
-        console.log(`✅ speaker${paddedId}.mp3 loaded successfully`);
+        console.log(`âœ… speaker${paddedId}.mp3 loaded successfully`);
       },
       (xhr) => {
         if (xhr.lengthComputable) {
           const percent = (xhr.loaded / xhr.total * 100).toFixed(0);
-          console.log(`📥 speaker${paddedId}.mp3 loading: ${percent}%`);
+          console.log(`ðŸ“¥ speaker${paddedId}.mp3 loading: ${percent}%`);
         }
       },
       (error) => {
-        console.error(`❌ Error loading speaker${paddedId}.mp3:`, error);
+        console.error(`âŒ Error loading speaker${paddedId}.mp3:`, error);
       }
     );
     pointSounds.push(speakerSound);
@@ -503,13 +514,19 @@ function init() {
     }
   }
   
-  createLabel("Almannagjá Rift: Basalt, low acoustic absorption (α 1KHz: 0.03) — acts not only a reflective surface but also as an acoustic diffusor.", new THREE.Vector3(10, 30, -116));
-  createLabel("Öxarárfoss: Waterfall and river, high SPL white-noise source type — the most dominant sound of the site reduces speech intelligibility as you get closer", new THREE.Vector3(0, 10, -440));
-  createLabel("Lögberg: Sheltered by rifts and rock formations in an amphitheater-like setting, the Lawspeaker's position ensures direct sound projection and visibility. The porous surface improves speech clarity.", new THREE.Vector3(15, 20, -284.800));
-  createLabel("Audience Area: it is believe that near 4500 listeners were located in this area. Low Background-Noise Noise is a key element for good speech intelligibility (NC:35-40)", new THREE.Vector3(70, -2, -310));
-  createLabel("Saga Listening: Follow the six pink diamonds (1→6). Hear how Chapter 141 sounds from different positions across the assembly grounds", new THREE.Vector3(67.861, 3, -262.059));
-  createLabel("Sounds of Birds: 52 bird species live by the lake Þingvallavatn, while 30 others come and go. The most famous bird is the great northern diver. Other migrant birds are barrow's goldeneye and the harlequin duck", new THREE.Vector3(15, 17, -195));
-  createLabel("Listen to the ECHO: Pass through the balloon!", new THREE.Vector3(8, 15, -110));
+createLabel("Almannagjá: Basalt, lítil hljóðgleypni (α 1KHz: 0.03) — virkar ekki aðeins sem endurvarpsflötur heldur einnig sem hljóðdreifari.", new THREE.Vector3(10, 30, -116));
+
+createLabel("Öxarárfoss: Foss og á, há hljóðstyrkur hvítt-suð uppspretta — mest ríkjandi hljóð svæðisins dregur úr skiljanleiка tals þegar nær dregur.", new THREE.Vector3(0, 10, -440));
+
+createLabel("Lögberg: Hækkuð staðsetning, skjól af klettamyndunum í leikhúslíku umhverfi. Héðan heyrðist rödd lögsogumanns skýrt yfir völlinn. Fjölgin yfirborð með mosa bætti skýrleika tals.", new THREE.Vector3(15, 20, -284.800));
+
+createLabel("Áheyrnasvæði: Talið er að um 4500 hlustendur hafi verið á þessu svæði. Lítill bakgrunnshávaði er lykilatriði fyrir góðan skiljanleika tals (NC:35-40).", new THREE.Vector3(70, 6, -310));
+
+createLabel("Söguhlustunarpunktar: Fylgdu bleiku demöntunum til að upplifa Brennu-Njáls sögu talaða eins og hún gæti hafa hljómað fyrir þúsund árum. Finndu allar sex stöðurnar til að ljúka hljóðferðinni þinni.", new THREE.Vector3(67.861, 7, -262.059));
+
+createLabel("52 fuglategundir búa við Þingvallavatn. Hlustaðu eftir himbrimi, húsönd og straumönd.", new THREE.Vector3(15, 17, -195));
+
+createLabel("Hlustaðu á BERGMÁLIÐ: Farðu í gegnum blaðruna!", new THREE.Vector3(8, 15, -110));
 
   controls = new PointerLockControls(camera, document.body);
 
@@ -588,7 +605,7 @@ function init() {
     }
   `;
   document.head.appendChild(style);
-  console.log('✅ Saga font CSS added');
+  console.log('âœ… Saga font CSS added');
 
   const onKeyDown = (event) => {
     switch (event.code) {
@@ -663,20 +680,161 @@ function hideInfoText() {
   }, 1000);
 }
 
+// ✅ VR INFO PANEL FUNCTIONS
+function showVRInfoText(title, text) {
+  if (vrInfoVisible) return; // Ya hay un panel visible
+  
+  // Crear canvas para el texto
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = 1024;
+  canvas.height = 768;
+  
+  // Fondo semi-transparente
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Título
+  ctx.fillStyle = '#FFD700';
+  ctx.font = 'bold 48px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText(title, canvas.width / 2, 80);
+  
+  // Texto principal
+  ctx.fillStyle = 'white';
+  ctx.font = '28px Arial';
+  ctx.textAlign = 'left';
+  
+  // Wrap text
+  const maxWidth = canvas.width - 100;
+  const lineHeight = 40;
+  const words = text.split(' ');
+  let line = '';
+  let y = 150;
+  
+  for (let n = 0; n < words.length; n++) {
+    const testLine = line + words[n] + ' ';
+    const metrics = ctx.measureText(testLine);
+    if (metrics.width > maxWidth && n > 0) {
+      ctx.fillText(line, 50, y);
+      line = words[n] + ' ';
+      y += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+  ctx.fillText(line, 50, y);
+  
+  // Instrucción de cierre
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+  ctx.font = '24px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('Press A or X button to close', canvas.width / 2, canvas.height - 40);
+  
+  // Crear textura y material
+  const texture = new THREE.CanvasTexture(canvas);
+  const material = new THREE.MeshBasicMaterial({ 
+    map: texture, 
+    transparent: true,
+    side: THREE.DoubleSide
+  });
+  
+  // Crear mesh del panel
+  const geometry = new THREE.PlaneGeometry(3, 2.25);
+  vrInfoMesh = new THREE.Mesh(geometry, material);
+  
+  // Posicionar panel frente al jugador
+  const playerPos = new THREE.Vector3();
+  camera.getWorldPosition(playerPos); // ✅ Posición mundial
+  const cameraDir = new THREE.Vector3(0, 0, -1);
+  
+  try {
+    const xrCamera = renderer.xr.getCamera();
+    if (xrCamera && xrCamera.quaternion) {
+      cameraDir.applyQuaternion(xrCamera.quaternion);
+    }
+  } catch (e) {}
+  
+  cameraDir.y = 0;
+  cameraDir.normalize();
+  
+  vrInfoMesh.position.copy(playerPos);
+  vrInfoMesh.position.y += 1.5; // A la altura de los ojos
+  vrInfoMesh.position.addScaledVector(cameraDir, 2.5); // 2.5m frente al jugador
+  
+  // Hacer que el panel mire al jugador
+  vrInfoMesh.lookAt(playerPos.x, vrInfoMesh.position.y, playerPos.z);
+  
+  scene.add(vrInfoMesh);
+  vrInfoVisible = true;
+  
+  console.log('📋 VR Info panel shown:', title);
+}
+
+function hideVRInfoText() {
+  if (vrInfoMesh) {
+    scene.remove(vrInfoMesh);
+    vrInfoMesh.geometry.dispose();
+    vrInfoMesh.material.map.dispose();
+    vrInfoMesh.material.dispose();
+    vrInfoMesh = null;
+  }
+  vrInfoVisible = false;
+  console.log('❌ VR Info panel hidden');
+}
+
+function checkVRButtonPress() {
+  if (!isXR || !vrInfoVisible) return;
+  
+  // Cerrar si el jugador se aleja del panel
+  if (vrInfoMesh) {
+    const playerPos = new THREE.Vector3();
+    camera.getWorldPosition(playerPos); // ✅ Posición mundial
+    const panelDist = playerPos.distanceTo(vrInfoMesh.position);
+    if (panelDist > 5) { // Cerrar si se aleja más de 5 metros
+      hideVRInfoText();
+      return;
+    }
+  }
+  
+  try {
+    const session = renderer.xr.getSession();
+    if (!session || !session.inputSources) return;
+    
+    for (const source of session.inputSources) {
+      if (!source.gamepad) continue;
+      
+      const buttons = source.gamepad.buttons;
+      // Botón A (index 4) o X (index 5) en controles VR
+      if (buttons[4]?.pressed || buttons[5]?.pressed) {
+        hideVRInfoText();
+        return;
+      }
+    }
+  } catch (error) {
+    console.error('VR button check error:', error);
+  }
+}
+
 function showSubtitle(pointId) {
   const subtitles = {
-    1: "One day, people went to the Lögberg, and the chieftains were arranged so that Ásgrímur Elliða-Grímsson and Gissur the White, Guðmundur the Powerful and Snorri goði were up at the Lögberg, while the Easterners stood below in front of them. Mörður Valgarðsson stood beside his brother-in-law Gissur the White. Mörður was the most eloquent of all men. Then Gissur said he should proclaim the manslaughter charge and asked him to speak loud enough so that everyone could hear well. Mörður called witnesses.",
-    2: "I call witnesses,-he said-, that I proclaim a legal charge of assault against Flosi Þórðarson because he attacked Helgi Njálsson at that place where Flosi Þórðarson attacked Helgi Njálsson and inflicted upon him a brain wound or a body wound or a marrow wound that became a fatal wound, and Helgi died from it. I declare that for this cause he must be found guilty, an outlaw without right to shelter, without right to transport, without right to aid in any form of rescue. I declare all his property forfeited, half to me and half to the quarter men who have the right to take the fine according to law. I proclaim this manslaughter charge to the Quarter Court where the case must be brought according to law. I proclaim a lawful proclamation. I proclaim this in audible voice at the Lögberg. I proclaim this for prosecution this summer and for full conviction against Flosi Þórðarson. I proclaim the case entrusted to Þorgeir Þórisson.",
-    3: "At the Lögberg there was great commotion because he had spoken well and boldly. Mörður spoke a second time.",
-    4: "I call you as witnesses,-he said-, that I proclaim a charge against Flosi Þórðarson because he wounded Helgi Njálsson with a brain wound or a body wound or a marrow wound, that wound which became fatal, and Helgi died from it, at that place where Flosi Þórðarson attacked Helgi Njálsson in a lawful first assault. I declare you, Flosi, must be found guilty for this cause, an outlaw without right to shelter, without right to transport, without right to aid in any form of rescue. I declare all your property forfeited, half to me and half to the quarter men who have the right to take the fine according to law. I proclaim this charge to the Quarter Court where the case must be brought according to law. I proclaim a lawful proclamation. I proclaim this in audible voice at the Lögberg. I proclaim this for prosecution this summer and for full conviction against Flosi Þórðarson. I proclaim the case entrusted to Þorgeir Þórisson.",
-    5: "Then Mörður sat down. Flosi listened carefully and said not a word. Þorgeir skorargeir stood up and called witnesses: I call witnesses that I proclaim a charge against Glúmur Hildisson because he took fire and kindled it and carried it into the house at Bergþórshvoll when they burned inside Njál Þorgeirsson and Bergþóra Skarphéðinsdóttir and all the men who burned inside there. I declare that for this cause he must be found guilty, an outlaw without right to shelter, without right to transport, without right to aid in any form of rescue. I declare all his property forfeited, half to me and half to the quarter men who have the right to take the fine according to law. I proclaim this charge to the Quarter Court where the case must be brought according to law. I proclaim a lawful proclamation. I proclaim this in audible voice at the Lögberg. I proclaim this for prosecution this summer and for full conviction against Glúmur Hildisson.",
-    6: "Kári Sölmundarson prosecuted Kol Þorsteinsson and Gunnar Lambason and Grani Gunnarsson, and people said he spoke extraordinarily well. Þorleifur krákur prosecuted all of Sigfús's sons, and his brother Þorgrímur the Great prosecuted Móðólfur Ketilsson and Lambi Sigurðarson and Hróar Hámundarson, brother of Leiðólfur the Strong. Ásgrímur Elliða-Grímsson prosecuted Leiðólfur and Þorsteinn Geirleifsson, Arni Kolsson and Grímur the Red, and they all spoke well. Then other men proclaimed their charges and this went on late into the day. Then people went home to their booths."
-  };
+  1: "Einn daginn fóru menn til Lögbergs, og höfðingjarnir voru raðaðir þannig að Ásgrímur Elliða-Grímsson og Gissur hvíti, Guðmundur ríki og Snorri goði voru uppi við Lögberg, en Austfirðingar stóðu fyrir neðan á móti þeim. Mörður Valgarðsson stóð hjá mági sínum Gissi hvíta. Mörður var mælskast allra manna. Þá sagði Gissur að hann skyldi flytja víglýsingu og bað hann tala nógu hátt svo að allir heyrðu vel. Mörður kallaði til vitna.",
+  
+  2: "Ég kalla til vitna - sagði hann - að ég lýsi löglegu máli um árásar mál á hendur Flosa Þórðarsyni vegna þess að hann réðst á Helga Njálsson á þeim stað þar sem Flosi Þórðarson réðst á Helga Njálsson og veitti honum heilasár eða líkamssár eða mergssár sem varð að banaríði, og Helgi dó úr því. Ég lýsi því yfir að vegna þessa verður hann sekur, útlægur án réttar til skjóls, án réttar til flutninga, án réttar til aðstoðar í nokkurs konar björgun. Ég lýsi yfir að allar eignir hans séu fyrirgert, helmingur til mín og helmingur til fjórðungsmanna sem eiga rétt til að taka sektina samkvæmt lögum. Ég lýsi þessari víglýsingu við fjórðungsdóm þar sem málið skal höfðað samkvæmt lögum. Ég lýsi löglegri lýsingu. Ég lýsi þessu í heyranda hljóði við Lögberg. Ég lýsi þessu til máls á þessu sumri og til fullrar sannfæringar gegn Flosa Þórðarsyni. Ég lýsi málinu falið Þorgeiri Þórissyni.",
+  
+  3: "Við Lögberg varð mikið uppnám vegna þess að hann hafði talað vel og djarflega. Mörður talaði í annað sinn.",
+  
+  4: "Ég kalla ykkur til vitna - sagði hann - að ég lýsi ákæru á hendur Flosa Þórðarsyni vegna þess að hann særði Helga Njálsson með heilasári eða líkamssári eða mergssári, því sári sem varð banvænt, og Helgi dó úr því, á þeim stað þar sem Flosi Þórðarson réðst á Helga Njálsson í löglegri fyrstu árás. Ég lýsi yfir að þú, Flosi, verðir fundinn sekur vegna þessa, útlægur án réttar til skjóls, án réttar til flutninga, án réttar til aðstoðar í nokkurs konar björgun. Ég lýsi yfir að allar eignir þínar séu fyrirgert, helmingur til mín og helmingur til fjórðungsmanna sem eiga rétt til að taka sektina samkvæmt lögum. Ég lýsi þessari ákæru við fjórðungsdóm þar sem málið skal höfðað samkvæmt lögum. Ég lýsi löglegri lýsingu. Ég lýsi þessu í heyranda hljóði við Lögberg. Ég lýsi þessu til máls á þessu sumri og til fullrar sannfæringar gegn Flosa Þórðarsyni. Ég lýsi málinu falið Þorgeiri Þórissyni.",
+  
+  5: "Þá settist Mörður niður. Flosi hlustaði vandlega og sagði ekki orð. Þorgeir skorargeir stóð upp og kallaði til vitna: Ég kalla til vitna að ég lýsi ákæru á hendur Glúmi Hildissyni vegna þess að hann tók eld og kveikti hann og bar hann inn í húsið á Bergþórshvoli þegar þeir brunnu inni Njáll Þorgeirsson og Bergþóra Skarphéðinsdóttir og allir þeir menn sem brunnu þar inni. Ég lýsi yfir að vegna þessa verður hann sekur, útlægur án réttar til skjóls, án réttar til flutninga, án réttar til aðstoðar í nokkurs konar björgun. Ég lýsi yfir að allar eignir hans séu fyrirgert, helmingur til mín og helmingur til fjórðungsmanna sem eiga rétt til að taka sektina samkvæmt lögum. Ég lýsi þessari ákæru við fjórðungsdóm þar sem málið skal höfðað samkvæmt lögum. Ég lýsi löglegri lýsingu. Ég lýsi þessu í heyranda hljóði við Lögberg. Ég lýsi þessu til máls á þessu sumri og til fullrar sannfæringar gegn Glúmi Hildissyni.",
+  
+  6: "Kári Sölmundarson flutti mál á hendur Kol Þorsteinssyni og Gunnari Lambasyni og Grana Gunnarssyni, og menn sögðu hann hafa talað einstaklega vel. Þorleifur krákur flutti mál á hendur öllum sonum Sigfúsar, og bróðir hans Þorgrímur ríki flutti mál á hendur Móðólfi Ketilssyni og Lamba Sigurðarsyni og Hróari Hámundarsyni, bróður Leiðólfs hins sterka. Ásgrímur Elliða-Grímsson flutti mál á hendur Leiðólfi og Þorsteini Geirleifs syni, Arna Kolssyni og Grími rauða, og töluðu þeir allir vel. Síðan lýstu aðrir menn ákærum sínum og hélt þetta áfram seint í daginn. Síðan fóru menn heim til búða sinna."
+};
   
   const subtitleText = subtitles[pointId] || "Subtitle text not available";
   
   subtitleDiv.innerHTML = `
-    <div style="color:#FFD700; font-weight:bold; margin-bottom:10px;">Point ${pointId} - Brennu-Njáls Saga</div>
+    <div style="color:#FFD700; font-weight:bold; margin-bottom:10px;">Point ${pointId} - Brennu-NjÃ¡ls Saga</div>
     <div style="font-style:italic;">${subtitleText}</div>
   `;
   subtitleDiv.style.display = 'block';
@@ -698,15 +856,32 @@ function onWindowResize() {
 
 function getSurfaceUnderPlayer() {
   if (!terrain) return null;
-  const origin = isXR ? xrRig.position : camera.position;
+  
+  // ✅ VR: Usar posición mundial de cámara
+  let origin;
+  if (isXR) {
+    origin = new THREE.Vector3();
+    camera.getWorldPosition(origin); // Posición absoluta en el mundo
+  } else {
+    origin = camera.position.clone();
+  }
+  
   footRay.set(origin, downVector);
   const hits = footRay.intersectObject(terrain, true);
-  if (!hits.length) return null;
+  
+  if (!hits.length) {
+    console.log('⚠️ VR: No terrain hit detected'); // Debug
+    return null;
+  }
+  
   const name = hits[0].object.name.toLowerCase();
+  console.log('🔍 VR: Surface detected:', name); // Debug
+  
   if (name.includes('grass')) return 'grass';
   if (name.includes('gravel')) return 'gravel';
   if (name.includes('rock')) return 'rock';
   if (name.includes('water')) return 'water';
+  
   return null;
 }
 
@@ -745,7 +920,7 @@ function animate() {
     } catch (error) {}
   }
 
-  const speed = isXR ? 25.0 : 40.0;
+  const speed = isXR ? 50.0 : 40.0; // ✅ VR: velocidad duplicada (era 25)
   velocity.x -= velocity.x * 10.0 * delta;
   velocity.z -= velocity.z * 10.0 * delta;
   direction.z = Number(moveForward) - Number(moveBackward);
@@ -784,7 +959,13 @@ function animate() {
 
   if (terrain) {
     try {
-      const rayOrigin = isXR ? xrRig.position.clone().add(new THREE.Vector3(0, 1.6, 0)) : (controls ? controls.getObject().position : camera.position);
+      let rayOrigin;
+      if (isXR) {
+        rayOrigin = new THREE.Vector3();
+        camera.getWorldPosition(rayOrigin); // Posición mundial de la cámara
+      } else {
+        rayOrigin = controls ? controls.getObject().position : camera.position;
+      }
       raycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
       const intersects = raycaster.intersectObject(terrain, true);
       if (intersects.length > 0) {
@@ -801,9 +982,14 @@ function animate() {
     } catch (error) {}
   }
 
-  const listenerPos = isXR 
-    ? xrRig.position.clone().add(new THREE.Vector3(0, 1.6, 0))
-    : (controls && controls.getObject() ? controls.getObject().position : camera.position);
+  // ✅ VR: obtener posición mundial de la cámara (que está dentro de xrRig)
+  let listenerPos;
+  if (isXR) {
+    listenerPos = new THREE.Vector3();
+    camera.getWorldPosition(listenerPos); // Posición absoluta en el mundo
+  } else {
+    listenerPos = controls && controls.getObject() ? controls.getObject().position : camera.position;
+  }
 
   if (riverSound && riverSound.buffer) {
     const dist = listenerPos.distanceTo(riverSource.position);
@@ -838,34 +1024,43 @@ function animate() {
     const dist = listenerPos.distanceTo(modelSource.position);
     if (dist < 9 && !modelSound.isPlaying) {
       modelSound.play();
-      console.log('🔥 Geisir sound started');
+      console.log('ðŸ”¥ Geisir sound started');
       if (!infoVisible && !isXR) {
-        showInfoText("FACT #1: The Geological Nature of Þingvellir", "Þingvellir is today a National Park and a UNESCO World Heritage Site. But beyond its beauty, this place quite literally lies on a fracture — the Mid-Atlantic Ridge. Here, it is one of the few places on Earth where you can walk between the North American and Eurasian tectonic plates, which drift apart by only a few millimeters each year. The landscape we see — the rift, and the cliffs of Almannagjá and Heiðargjá — is the result of millennia of tectonic movements, eruptions, and collapses that shape its ACOUSTIC IDENTITY.", "images/fact1.jpg");
+showInfoText("STAÐREYND #1: Jarðfræðileg eðli Þingvalla", "Þingvellir er í dag þjóðgarður og á heimsminjaskrá UNESCO. En fyrir utan fegurð sína liggur þessi staður bókstaflega á sprungulínu — Mið-Atlantshafshryggnum. Hér er einn af fáum stöðum á jörðinni þar sem þú getur gengið á milli Norður-Ameríku og Evrasísku jarðskorpuflekanna, sem rekast í sundur aðeins nokkra millimetra á ári. Landslagið sem við sjáum — gjáin og klettar Almannagjár og Heiðargjár — er afleiðing árþúsunda af jarðskjálftahreyfingum, gosum og hruni sem móta HLJÓÐKENND þess.", "images/fact1.jpg");
+      } else if (isXR && !vrInfoVisible) {
+        showVRInfoText("STAÐREYND #1: Jarðfræðileg eðli Þingvalla", "Þingvellir er í dag þjóðgarður og á heimsminjaskrá UNESCO. En fyrir utan fegurð sína liggur þessi staður bókstaflega á sprungulínu — Mið-Atlantshafshryggnum. Hér er einn af fáum stöðum á jörðinni þar sem þú getur gengið á milli Norður-Ameríku og Evrasísku jarðskorpuflekanna, sem rekast í sundur aðeins nokkra millimetra á ári. Landslagið sem við sjáum — gjáin og klettar Almannagjár og Heiðargjár — er afleiðing árþúsunda af jarðskjálftahreyfingum, gosum og hruni sem móta HLJÓÐKENND þess.");
       }
     } else if (dist >= 10 && modelSound.isPlaying) {
       modelSound.stop();
-      console.log('🔥 Geisir sound stopped');
+      console.log('ðŸ”¥ Geisir sound stopped');
     }
   }
 
   // === BOOK INFO (PROXIMIDAD + TEXTO) ===
-  if (!isXR && controls && controls.isLocked) {
-    const bookPosition = new THREE.Vector3(66.861, -11, -275.059);
-    const distbook = listenerPos.distanceTo(bookPosition);
-    
-    if (distbook < 10 && !bookInfoShown) {
-      showInfoText("STAÐREYND #4: Íslendingasögurnar á Þingvöllum", "Miðaldasögur sem varðveittu minninguna um þennan stað og fólk hans. Skrifaðar öldum eftir atburðina sem þær lýsa, bjóða þær upp á innsýn í hvernig Alþingi virkaði — og hversu miðlægt hljóð og tal voru í íslenskri menningu. Í Brennu-Njáls sögu kemur ein setning fram aftur og aftur — meira en 14 sinnum: Lýsi ek í heyranda hljóði að Lögbergi. Þetta var ekki bara formsatriði. Það var lagaleg krafa. Til að gera eitthvað opinbert þurfti að lýsa því upphátt, á Lögbergi, þar sem allir gátu heyrt. Sögurnar mundu ekki bara hvað var sagt, heldur hvar og hvernig það var sagt. Hljóðið skipti máli. Að vera heyrður skipti máli.", "images/book.jpeg");
-      bookInfoShown = true;
-      console.log('✅ Book info shown');
-    } else if (distbook >= 10) {
-      bookInfoShown = false;
-    }
+  const bookPosition = new THREE.Vector3(66.861, -11, -275.059);
+  const distbook = listenerPos.distanceTo(bookPosition);
+  
+  if (distbook < 10 && !bookInfoShown && !isXR && controls && controls.isLocked) {
+showInfoText("STAÐREYND #4: Íslendingasögurnar á Þingvöllum", "Miðaldasögur sem varðveittu minninguna um þennan stað og fólkið hans. Skrifaðar öldum eftir atburðina sem þær lýsa, veita þær innsýn í hvernig Alþingi virkaði og hve miðlægt hljóð og tal voru í íslenskri menningu. Í Brennu-Njáls sögu birtist ein setning aftur og aftur — oftar en 14 sinnum: Lýsi ek í heyranda hljóði að Lögbergi. Þetta var ekki bara formfesta. Þetta var lagaleg krafa. Til að gera eitthvað opinbert þurfti að lýsa því upphátt, á Lögbergi, þar sem allir gátu heyrt. Sögurnar mundu ekki bara hvað var sagt, heldur hvar og hvernig það var sagt. Hljóð skipti máli. Að vera heyrður skipti máli.", "images/book.jpeg");
+    bookInfoShown = true;
+    console.log('✅ Book info shown');
+  } else if (distbook < 10 && !bookInfoShown && isXR && !vrInfoVisible) {
+    showVRInfoText("STAÐREYND #4: Íslendingasögurnar á Þingvöllum", "Miðaldasögur sem varðveittu minninguna um þennan stað og fólkið hans. Skrifaðar öldum eftir atburðina sem þær lýsa, veita þær innsýn í hvernig Alþingi virkaði og hve miðlægt hljóð og tal voru í íslenskri menningu. Í Brennu-Njáls sögu birtist ein setning aftur og aftur — oftar en 14 sinnum: Lýsi ek í heyranda hljóði að Lögbergi. Þetta var ekki bara formfesta. Þetta var lagaleg krafa. Til að gera eitthvað opinbert þurfti að lýsa því upphátt, á Lögbergi, þar sem allir gátu heyrt. Sögurnar mundu ekki bara hvað var sagt, heldur hvar og hvernig það var sagt. Hljóð skipti máli. Að vera heyrður skipti máli.");
+    bookInfoShown = true;
+    console.log('✅ Book info shown (VR)');
+  } else if (distbook >= 10) {
+    bookInfoShown = false;
   }
+
+
 
   if (balloonSource && balloonSound && balloonSound.buffer) {
     const dist = listenerPos.distanceTo(balloonSource.position);
-    if (dist < 10 && !balloonInfoShown) {
-      showInfoText("FACT #2: Þingvellir distinctive echo", "Due to its very distinctive geographical landscape, Thingvellir has a highly recognizable acoustic footprint. No matter where you are, you can always perceive a characteristic echo caused by the geological formations that shape the acoustics and auditory perception of this place.", "images/fact2.jpg");
+    if (dist < 10 && !balloonInfoShown && !isXR) {
+showInfoText("STAÐREYND #2: Einkennandi bergmál Þingvalla", "Vegna mjög sérstaks landfræðilegs landslags hefur Þingvellir mjög þekkt hljóðfótspor. Sama hvar þú ert geturðu alltaf skynjað einkennandi bergmál sem stafar af jarðmyndunum sem móta hljóðfræði og heyrnarskynjun þessa staðar.", "images/fact2.jpg");
+      balloonInfoShown = true;
+    } else if (dist < 10 && !balloonInfoShown && isXR && !vrInfoVisible) {
+      showVRInfoText("STAÐREYND #2: Einkennandi bergmál Þingvalla", "Vegna mjög sérstaks landfræðilegs landslags hefur Þingvellir mjög þekkt hljóðfótspor. Sama hvar þú ert geturðu alltaf skynjað einkennandi bergmál sem stafar af jarðmyndunum sem móta hljóðfræði og heyrnarskynjun þessa staðar.");
       balloonInfoShown = true;
     } else if (dist >= 10) {
       balloonInfoShown = false;
@@ -879,12 +1074,16 @@ function animate() {
     }
   }
 
-  if (!isXR && controls && controls.isLocked && speakerSource) {
+  if (speakerSource) {
     const distspeaker = listenerPos.distanceTo(speakerSource.position);
-    if (distspeaker < 7 && !speakerInfoShown) {
-      showInfoText("FACT #3: Orality at Lögberg (Law Rock) 930-1262", "At the Lögberg (Law Rock) and the nearby plains, Icelanders gathered to proclaim laws and deliver judgments. The central figure of the assembly was the Law Speaker, who recited aloud the laws of the Commonwealth. He memorized the entire body of laws and had three years to recite them in full, in regular increments each summer, when he was also required to review the procedural rules. The exceptionally low ambient noise, the acoustic absorption of the moss-covered surface and the audience, together with the elevated position of the Law Speaker — which allowed unobstructed direct sound rays to reach all listeners — made Lögberg an ideal setting for speech intelligibility.", "images/fact3.jpg");
+    if (distspeaker < 7 && !speakerInfoShown && !isXR && controls && controls.isLocked) {
+showInfoText("STAÐREYND #3: Munnmæli við Lögberg 930-1262", "Við Lögberg og nálæga velli söfnuðust Íslendingar til að lýsa lögum og dæma dóma. Aðalpersónan var lögsögumaðurinn, sem hafði alla lögbók Íslands utan að og las hana upphátt á þremur árum, í reglulegum hlutum á hverju sumri. Réttlæti var ekki skrifað. Það var talað, heyrt og munað. Hljóðfræði Þingvalla gerði þetta mögulegt. Hvers vegna virkaði þetta? Einstaklega lítill bakgrunnshávaði, hljóðgleypni mosaklædds yfirborðs og áhorfenda, ásamt hækkaðri stöðu lögsögumannsins — sem leyfði óhindrað beint hljóð að ná til allra hlustenda — gerði Lögberg að kjörstað fyrir skiljanleika tals.", "images/fact3.jpg");
       speakerInfoShown = true;
       console.log('✅ Speaker info shown');
+    } else if (distspeaker < 7 && !speakerInfoShown && isXR && !vrInfoVisible) {
+      showVRInfoText("STAÐREYND #3: Munnmæli við Lögberg 930-1262", "Við Lögberg og nálæga velli söfnuðust Íslendingar til að lýsa lögum og dæma dóma. Aðalpersónan var lögsögumaðurinn, sem hafði alla lögbók Íslands utan að og las hana upphátt á þremur árum, í reglulegum hlutum á hverju sumri. Réttlæti var ekki skrifað. Það var talað, heyrt og munað. Hljóðfræði Þingvalla gerði þetta mögulegt. Hvers vegna virkaði þetta? Einstaklega lítill bakgrunnshávaði, hljóðgleypni mosaklædds yfirborðs og áhorfenda, ásamt hækkaðri stöðu lögsögumannsins — sem leyfði óhindrað beint hljóð að ná til allra hlustenda — gerði Lögberg að kjörstað fyrir skiljanleika tals.");
+      speakerInfoShown = true;
+      console.log('✅ Speaker info shown (VR)');
     } else if (distspeaker >= 7) {
       speakerInfoShown = false;
     }
@@ -896,19 +1095,19 @@ function animate() {
     
     if (!pointActivated[index] && dist < 7) {
       pointActivated[index] = true;
-      console.log(`🎯 Point ${point.id} triggered!`);
+      console.log(`ðŸŽ¯ Point ${point.id} triggered!`);
       
       if (sound && sound.buffer && !sound.isPlaying) {
         sound.play();
         showSubtitle(point.id);
-        console.log(`✅ Point ${point.id} activated`);
+        console.log(`âœ… Point ${point.id} activated`);
         
         sound.onEnded = () => {
           hideSubtitle();
-          console.log(`🎵 Point ${point.id} audio finished`);
+          console.log(`ðŸŽµ Point ${point.id} audio finished`);
         };
       } else if (sound && !sound.buffer) {
-        console.warn(`⚠️ Point ${point.id} sound not loaded yet`);
+        console.warn(`âš ï¸ Point ${point.id} sound not loaded yet`);
       }
     }
     
@@ -916,7 +1115,7 @@ function animate() {
       if (sound && sound.isPlaying) {
         sound.stop();
         hideSubtitle();
-        console.log(`❌ Point ${point.id} deactivated`);
+        console.log(`âŒ Point ${point.id} deactivated`);
       }
       pointActivated[index] = false;
     }
@@ -959,13 +1158,22 @@ function animate() {
     }
   }
 
-  const playerPos = isXR ? xrRig.position : (controls ? controls.getObject().position : camera.position);
+  let playerPos;
+  if (isXR) {
+    playerPos = new THREE.Vector3();
+    camera.getWorldPosition(playerPos); // ✅ Posición mundial
+  } else {
+    playerPos = controls ? controls.getObject().position : camera.position;
+  }
   const moved = playerPos.distanceTo(lastStepPos);
   if (moved > STEP_DISTANCE) {
     const surface = getSurfaceUnderPlayer();
     if (surface) playFootstep(surface);
     lastStepPos.copy(playerPos);
   }
+
+  // Check VR button press to close info panel
+  checkVRButtonPress();
 
   renderer.render(scene, camera);
 }

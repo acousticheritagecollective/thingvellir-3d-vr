@@ -23,18 +23,13 @@ let modelSound, modelSource;
 let balloonAudioPlayed = false;
 let balloonInfoShown = false;
 let speakerInfoShown = false;
-let bookInfoShown = false; // â† NUEVA
+let bookInfoShown = false; // ← NUEVA
 let raycaster = new THREE.Raycaster();
 let infoVisible = false;
 let infoTextDiv;
 let subtitleDiv;
 let isXR = false;
 let xrRig;
-
-// ✅ VR Info Panel System
-let vrInfoPanel = null;
-let vrInfoVisible = false;
-let vrInfoMesh = null;
 
 // Sistema de puntos narrativos
 const pointPositions = [
@@ -47,7 +42,7 @@ const pointPositions = [
 ];
 const pointActivated = [false, false, false, false, false, false];
 const pointSounds = [];
-const speakerPosition = new THREE.Vector3(3, 1, -289); // PosiciÃ³n para audios narrativos
+const speakerPosition = new THREE.Vector3(3, 1, -289); // Posición para audios narrativos
 
 // CONSTANTES GLOBALES
 const NOISE_FLOOR = -32;
@@ -122,7 +117,7 @@ function init() {
   camera.position.set(0, 1.6, 0);
 
   xrRig = new THREE.Group();
-  xrRig.position.set(0, 1.6, 0); // Mantener altura inicial para no afectar desktop
+  xrRig.position.set(0, 1.6, 0);
   const cameraGroup = new THREE.Group();
   cameraGroup.add(camera);
   xrRig.add(cameraGroup);
@@ -144,72 +139,66 @@ function init() {
   scene.add(xrController);
 
   renderer.xr.addEventListener('sessionstart', () => {
-    console.log('ðŸš€ VR SESSION STARTING...');
+    console.log('🚀 VR SESSION STARTING...');
     xrSessionStartTime = Date.now();
     isXR = true;
 
-    // ✅ VR: Duplicar altura de cámara
-    xrRig.position.y = 3.2;
-
-    // camera.remove(listener); // ✅ COMENTADO: listener se queda en camera para rotación VR
-    // xrRig.add(listener); // ✅ COMENTADO: listener se queda en camera para rotación VR
-    console.log('ðŸŽ§ Listener stays in camera for VR head rotation tracking');
+    camera.remove(listener);
+    xrRig.add(listener);
+    console.log('🎧 Listener moved to xrRig');
 
     const ctx = listener.context;
     if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
-      console.log('âš ï¸ AudioContext state:', ctx.state);
+      console.log('⚠️ AudioContext state:', ctx.state);
       ctx.resume().then(() => {
-        console.log('ðŸ”Š AudioContext resumed, state:', ctx.state);
-      }).catch(err => console.error('âŒ Audio resume error:', err));
+        console.log('🔊 AudioContext resumed, state:', ctx.state);
+      }).catch(err => console.error('❌ Audio resume error:', err));
     } else {
-      console.log('âœ… AudioContext already running, state:', ctx.state);
+      console.log('✅ AudioContext already running, state:', ctx.state);
     }
 
     const instructions = document.getElementById('instructions');
     if (instructions) instructions.style.display = 'none';
 
     if (controls && controls.isLocked) {
-      console.log('ðŸ”“ Unlocking PointerLock...');
+      console.log('🔓 Unlocking PointerLock...');
       controls.unlock();
     }
 
-    camera.getWorldPosition(lastStepPos); // ✅ VR: posición mundial inicial
+    lastStepPos.copy(xrRig.position);
     
     setTimeout(() => {
       try {
-        console.log('ðŸŽµ Starting audio playback...');
+        console.log('🎵 Starting audio playback...');
         if (riverSound && riverSound.buffer && !riverSound.isPlaying) {
           riverSound.play();
-          console.log('ðŸŒŠ River sound started');
+          console.log('🌊 River sound started');
         }
         if (birds1 && birds1.buffer && !birds1.isPlaying) {
           birds1.play();
-          console.log('ðŸ¦ Birds1 started');
+          console.log('🐦 Birds1 started');
         }
         if (birds2 && birds2.buffer && !birds2.isPlaying) {
           birds2.play();
-          console.log('ðŸ¦ Birds2 started');
+          console.log('🐦 Birds2 started');
         }
       } catch (err) {
-        console.error('âŒ Audio playback error:', err);
+        console.error('❌ Audio playback error:', err);
       }
     }, 1000);
 
-    console.log('âœ… XR SESSION ACTIVE');
+    console.log('✅ XR SESSION ACTIVE');
   });
 
   renderer.xr.addEventListener('sessionend', () => {
     const duration = ((Date.now() - xrSessionStartTime) / 1000).toFixed(2);
     isXR = false;
     
-    // ✅ Restaurar altura original
-    xrRig.position.y = 1.6;
+    xrRig.remove(listener);
+    camera.add(listener);
+    console.log('🎧 Listener returned to camera');
     
-    // xrRig.remove(listener); // ✅ COMENTADO: listener nunca salió de camera
-    // camera.add(listener); // ✅ COMENTADO: listener siempre estuvo en camera
-    console.log('ðŸŽ§ Listener returned to camera');
-    
-    console.log(`âŒ XR session ended after ${duration} seconds`);
+    console.log(`❌ XR session ended after ${duration} seconds`);
     if (riverSound && riverSound.isPlaying) riverSound.pause();
     if (modelSound && modelSound.isPlaying) modelSound.pause();
     if (birds1 && birds1.isPlaying) birds1.pause();
@@ -367,7 +356,7 @@ function init() {
     speakerSource.position.set(3, 1, -289);
     speakerSource.scale.set(1, 1.2, 1);
     scene.add(speakerSource);
-    console.log('âœ… Speaker model loaded at LÃ¶gberg');
+    console.log('✅ Speaker model loaded at Lögberg');
   });
 
   loader.load('book.glb', (book) => {
@@ -380,12 +369,12 @@ function init() {
   }, (error) => console.error('Error loading book model:', error));
 
   // === CARGAR AUDIOS NARRATIVOS ===
-  console.log('ðŸŽµ Starting to load narrative audios...');
+  console.log('🎵 Starting to load narrative audios...');
   
-  const narrativeSpeakerSource = new THREE.Object3D(); // âœ… Nombre diferente
+  const narrativeSpeakerSource = new THREE.Object3D(); // ✅ Nombre diferente
   narrativeSpeakerSource.position.copy(speakerPosition);
   scene.add(narrativeSpeakerSource);
-  console.log('ðŸ“ Narrative audio source positioned at:', speakerPosition);
+  console.log('📍 Narrative audio source positioned at:', speakerPosition);
   
   const narrativeAudioLoader = new THREE.AudioLoader();
   for (let i = 1; i <= 6; i++) {
@@ -401,16 +390,16 @@ function init() {
         speakerSound.setVolume(2);
         attachToSoundMeter(speakerSound);
         narrativeSpeakerSource.add(speakerSound);
-        console.log(`âœ… speaker${paddedId}.mp3 loaded successfully`);
+        console.log(`✅ speaker${paddedId}.mp3 loaded successfully`);
       },
       (xhr) => {
         if (xhr.lengthComputable) {
           const percent = (xhr.loaded / xhr.total * 100).toFixed(0);
-          console.log(`ðŸ“¥ speaker${paddedId}.mp3 loading: ${percent}%`);
+          console.log(`📥 speaker${paddedId}.mp3 loading: ${percent}%`);
         }
       },
       (error) => {
-        console.error(`âŒ Error loading speaker${paddedId}.mp3:`, error);
+        console.error(`❌ Error loading speaker${paddedId}.mp3:`, error);
       }
     );
     pointSounds.push(speakerSound);
@@ -518,7 +507,7 @@ function init() {
   createLabel("Öxarárfoss: Cascada i riu, font de soroll blanc amb SPL elevat — el so més dominant del lloc, que redueix la intel·ligibilitat de la parla a mesura que t’hi acostes", new THREE.Vector3(0, 10, -440));
   createLabel("Lögberg: Posició elevada, protegida per formacions rocoses en una configuració semblant a un amfiteatre. Des d’aquí, la veu del portaveu de la llei es projectava clarament a través de les planes. La superfície porosa coberta de molsa millorava la claredat de la parla.", new THREE.Vector3(15, 20, -284.800));
   createLabel("Àrea del públic: Es creu que prop de 4.500 oients s’ubicaven en aquesta zona. El baix nivell de soroll de fons és un element clau per a una bona intel·ligibilitat de la parla (NC: 35–40)", new THREE.Vector3(70, -2, -310));
-  createLabel("Escolta de la Saga: Segueix els sis diamants rosa (1→6). Escolta com sona el Capítol 141 des de diferents posicions al camp de l'assemblea.", new THREE.Vector3(67.861, 7, -262.059));
+  createLabel("Escolta de la Saga: Segueix els sis diamants rosa (1→6). Escolta com sona el Capítol 141 des de diferents posicions al camp de l'assemblea.", new THREE.Vector3(67.861, 3, -262.059));
   createLabel("Fauna sonora: 52 espècies d’ocells viuen al voltant del llac Þingvallavatn. Escolta el somorgollaire gros, l’ànec d’ulls d’or i l’ànec arlequí", new THREE.Vector3(15, 17, -195));
   createLabel("Escolta l’ECO: travessa el globus!", new THREE.Vector3(8, 15, -110));
 
@@ -599,7 +588,7 @@ function init() {
     }
   `;
   document.head.appendChild(style);
-  console.log('âœ… Saga font CSS added');
+  console.log('✅ Saga font CSS added');
 
   const onKeyDown = (event) => {
     switch (event.code) {
@@ -660,7 +649,7 @@ function showInfoText(title, text, imagePath = null) {
   if (imagePath) {
     imageHTML = `<img src="${imagePath}" style="width:100%; max-height:250px; object-fit:cover; border-radius:8px; margin-bottom:15px;" alt="${title}">`;
   }
-  infoTextDiv.innerHTML = `<h2 style="color:#ffd700; margin-top:0;">${title}</h2>${imageHTML}<p>${text}</p><p style="opacity:0.7;font-size:14px;">Press SPACE to close</p>`;
+  infoTextDiv.innerHTML = `<h2 style="color:#ffd700; margin-top:0;">${title}</h2>${imageHTML}<p>${text}</p><p style="opacity:0.7;font-size:14px;">Prem SPACE per tancar</p>`;
   infoTextDiv.style.display = 'block';
   infoTextDiv.style.opacity = '1';
   infoVisible = true;
@@ -672,142 +661,6 @@ function hideInfoText() {
     infoTextDiv.style.display = 'none';
     infoVisible = false;
   }, 1000);
-}
-
-// ✅ VR INFO PANEL FUNCTIONS
-function showVRInfoText(title, text) {
-  if (vrInfoVisible) return; // Ya hay un panel visible
-  
-  // Crear canvas para el texto
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = 1024;
-  canvas.height = 768;
-  
-  // Fondo semi-transparente
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  
-  // Título
-  ctx.fillStyle = '#FFD700';
-  ctx.font = 'bold 48px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText(title, canvas.width / 2, 80);
-  
-  // Texto principal
-  ctx.fillStyle = 'white';
-  ctx.font = '28px Arial';
-  ctx.textAlign = 'left';
-  
-  // Wrap text
-  const maxWidth = canvas.width - 100;
-  const lineHeight = 40;
-  const words = text.split(' ');
-  let line = '';
-  let y = 150;
-  
-  for (let n = 0; n < words.length; n++) {
-    const testLine = line + words[n] + ' ';
-    const metrics = ctx.measureText(testLine);
-    if (metrics.width > maxWidth && n > 0) {
-      ctx.fillText(line, 50, y);
-      line = words[n] + ' ';
-      y += lineHeight;
-    } else {
-      line = testLine;
-    }
-  }
-  ctx.fillText(line, 50, y);
-  
-  // Instrucción de cierre
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-  ctx.font = '24px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('Press A or X button to close', canvas.width / 2, canvas.height - 40);
-  
-  // Crear textura y material
-  const texture = new THREE.CanvasTexture(canvas);
-  const material = new THREE.MeshBasicMaterial({ 
-    map: texture, 
-    transparent: true,
-    side: THREE.DoubleSide
-  });
-  
-  // Crear mesh del panel
-  const geometry = new THREE.PlaneGeometry(3, 2.25);
-  vrInfoMesh = new THREE.Mesh(geometry, material);
-  
-  // Posicionar panel frente al jugador
-  const playerPos = new THREE.Vector3();
-  camera.getWorldPosition(playerPos); // ✅ Posición mundial
-  const cameraDir = new THREE.Vector3(0, 0, -1);
-  
-  try {
-    const xrCamera = renderer.xr.getCamera();
-    if (xrCamera && xrCamera.quaternion) {
-      cameraDir.applyQuaternion(xrCamera.quaternion);
-    }
-  } catch (e) {}
-  
-  cameraDir.y = 0;
-  cameraDir.normalize();
-  
-  vrInfoMesh.position.copy(playerPos);
-  vrInfoMesh.position.y += 1.5; // A la altura de los ojos
-  vrInfoMesh.position.addScaledVector(cameraDir, 2.5); // 2.5m frente al jugador
-  
-  // Hacer que el panel mire al jugador
-  vrInfoMesh.lookAt(playerPos.x, vrInfoMesh.position.y, playerPos.z);
-  
-  scene.add(vrInfoMesh);
-  vrInfoVisible = true;
-  
-  console.log('📋 VR Info panel shown:', title);
-}
-
-function hideVRInfoText() {
-  if (vrInfoMesh) {
-    scene.remove(vrInfoMesh);
-    vrInfoMesh.geometry.dispose();
-    vrInfoMesh.material.map.dispose();
-    vrInfoMesh.material.dispose();
-    vrInfoMesh = null;
-  }
-  vrInfoVisible = false;
-  console.log('❌ VR Info panel hidden');
-}
-
-function checkVRButtonPress() {
-  if (!isXR || !vrInfoVisible) return;
-  
-  // Cerrar si el jugador se aleja del panel
-  if (vrInfoMesh) {
-    const playerPos = new THREE.Vector3();
-    camera.getWorldPosition(playerPos); // ✅ Posición mundial
-    const panelDist = playerPos.distanceTo(vrInfoMesh.position);
-    if (panelDist > 5) { // Cerrar si se aleja más de 5 metros
-      hideVRInfoText();
-      return;
-    }
-  }
-  
-  try {
-    const session = renderer.xr.getSession();
-    if (!session || !session.inputSources) return;
-    
-    for (const source of session.inputSources) {
-      if (!source.gamepad) continue;
-      
-      const buttons = source.gamepad.buttons;
-      // Botón A (index 4) o X (index 5) en controles VR
-      if (buttons[4]?.pressed || buttons[5]?.pressed) {
-        hideVRInfoText();
-        return;
-      }
-    }
-  } catch (error) {
-    console.error('VR button check error:', error);
-  }
 }
 
 function showSubtitle(pointId) {
@@ -823,7 +676,7 @@ function showSubtitle(pointId) {
   const subtitleText = subtitles[pointId] || "Subtitle text not available";
   
   subtitleDiv.innerHTML = `
-    <div style="color:#FFD700; font-weight:bold; margin-bottom:10px;">Point ${pointId} - Brennu-NjÃ¡ls Saga</div>
+    <div style="color:#FFD700; font-weight:bold; margin-bottom:10px;">Point ${pointId} - Brennu-Njáls Saga</div>
     <div style="font-style:italic;">${subtitleText}</div>
   `;
   subtitleDiv.style.display = 'block';
@@ -845,32 +698,15 @@ function onWindowResize() {
 
 function getSurfaceUnderPlayer() {
   if (!terrain) return null;
-  
-  // ✅ VR: Usar posición mundial de cámara
-  let origin;
-  if (isXR) {
-    origin = new THREE.Vector3();
-    camera.getWorldPosition(origin); // Posición absoluta en el mundo
-  } else {
-    origin = camera.position.clone();
-  }
-  
+  const origin = isXR ? xrRig.position : camera.position;
   footRay.set(origin, downVector);
   const hits = footRay.intersectObject(terrain, true);
-  
-  if (!hits.length) {
-    console.log('⚠️ VR: No terrain hit detected'); // Debug
-    return null;
-  }
-  
+  if (!hits.length) return null;
   const name = hits[0].object.name.toLowerCase();
-  console.log('🔍 VR: Surface detected:', name); // Debug
-  
   if (name.includes('grass')) return 'grass';
   if (name.includes('gravel')) return 'gravel';
   if (name.includes('rock')) return 'rock';
   if (name.includes('water')) return 'water';
-  
   return null;
 }
 
@@ -909,7 +745,7 @@ function animate() {
     } catch (error) {}
   }
 
-  const speed = isXR ? 50.0 : 40.0; // ✅ VR: velocidad duplicada (era 25)
+  const speed = isXR ? 25.0 : 40.0;
   velocity.x -= velocity.x * 10.0 * delta;
   velocity.z -= velocity.z * 10.0 * delta;
   direction.z = Number(moveForward) - Number(moveBackward);
@@ -948,13 +784,7 @@ function animate() {
 
   if (terrain) {
     try {
-      let rayOrigin;
-      if (isXR) {
-        rayOrigin = new THREE.Vector3();
-        camera.getWorldPosition(rayOrigin); // Posición mundial de la cámara
-      } else {
-        rayOrigin = controls ? controls.getObject().position : camera.position;
-      }
+      const rayOrigin = isXR ? xrRig.position.clone().add(new THREE.Vector3(0, 1.6, 0)) : (controls ? controls.getObject().position : camera.position);
       raycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
       const intersects = raycaster.intersectObject(terrain, true);
       if (intersects.length > 0) {
@@ -971,14 +801,9 @@ function animate() {
     } catch (error) {}
   }
 
-  // ✅ VR: obtener posición mundial de la cámara (que está dentro de xrRig)
-  let listenerPos;
-  if (isXR) {
-    listenerPos = new THREE.Vector3();
-    camera.getWorldPosition(listenerPos); // Posición absoluta en el mundo
-  } else {
-    listenerPos = controls && controls.getObject() ? controls.getObject().position : camera.position;
-  }
+  const listenerPos = isXR 
+    ? xrRig.position.clone().add(new THREE.Vector3(0, 1.6, 0))
+    : (controls && controls.getObject() ? controls.getObject().position : camera.position);
 
   if (riverSound && riverSound.buffer) {
     const dist = listenerPos.distanceTo(riverSource.position);
@@ -1013,43 +838,34 @@ function animate() {
     const dist = listenerPos.distanceTo(modelSource.position);
     if (dist < 9 && !modelSound.isPlaying) {
       modelSound.play();
-      console.log('ðŸ”¥ Geisir sound started');
+      console.log('🔥 Geisir sound started');
       if (!infoVisible && !isXR) {
         showInfoText("FET #1: La naturalesa geològica de Þingvellir", "Þingvellir és avui un Parc Nacional i Patrimoni Mundial de la UNESCO. Però més enllà de la seva bellesa, aquest lloc se situa literalment sobre una fractura: la dorsal mesoatlàntica. Aquí es troba un dels pocs indrets del planeta on es pot caminar entre les plaques tectòniques nord-americana i eurasiàtica, que se separen només uns pocs mil·límetres cada any. El paisatge que observem — la falla i els penya-segats d’Almannagjá i Heiðargjá — és el resultat de mil·lennis de moviments tectònics, erupcions i col·lapses que han configurat la seva identitat acústica.", "images/fact1.jpg");
-      } else if (isXR && !vrInfoVisible) {
-        showVRInfoText("FET #1: La naturalesa geològica de Þingvellir", "Þingvellir és avui un Parc Nacional i Patrimoni Mundial de la UNESCO. Però més enllà de la seva bellesa, aquest lloc se situa literalment sobre una fractura: la dorsal mesoatlàntica. Aquí es troba un dels pocs indrets del planeta on es pot caminar entre les plaques tectòniques nord-americana i eurasiàtica, que se separen només uns pocs mil·límetres cada any. El paisatge que observem — la falla i els penya-segats d’Almannagjá i Heiðargjá — és el resultat de mil·lennis de moviments tectònics, erupcions i col·lapses que han configurat la seva identitat acústica.");
       }
     } else if (dist >= 10 && modelSound.isPlaying) {
       modelSound.stop();
-      console.log('ðŸ”¥ Geisir sound stopped');
+      console.log('🔥 Geisir sound stopped');
     }
   }
 
   // === BOOK INFO (PROXIMIDAD + TEXTO) ===
-  const bookPosition = new THREE.Vector3(66.861, -11, -275.059);
-  const distbook = listenerPos.distanceTo(bookPosition);
-  
-  if (distbook < 10 && !bookInfoShown && !isXR && controls && controls.isLocked) {
-    showInfoText("FET #4: Les Sagas Islandeses a Þingvellir", "Històries medievals que van preservar la memòria d'aquest lloc i la seva gent. Escrites segles després dels esdeveniments que descriuen, ofereixen una visió de com funcionava l'Alþing — i de com el so i la paraula eren centrals a la cultura islandesa. A la Brennu-Njáls Saga, una frase apareix una i altra vegada — més de 14 vegades: Lýsi ek í heyranda hljóði að Lögbergi (Declaro això amb veu audible a la Roca de la Llei.) Això no era només una formalitat. Era un requisit legal. Per fer oficial alguna cosa, s'havia de proclamar en veu alta, al Lögberg, on tothom pogués escoltar. Les sagas recordaven no només el que es deia, sinó on i com es deia. El so importava. Ser escoltat importava.", "images/book.jpeg");
-    bookInfoShown = true;
-    console.log('✅ Book info shown');
-  } else if (distbook < 10 && !bookInfoShown && isXR && !vrInfoVisible) {
-    showVRInfoText("FET #4: Les Sagas Islandeses a Þingvellir", "Històries medievals que van preservar la memòria d'aquest lloc i la seva gent. Escrites segles després dels esdeveniments que descriuen, ofereixen una visió de com funcionava l'Alþing — i de com el so i la paraula eren centrals a la cultura islandesa. A la Brennu-Njáls Saga, una frase apareix una i altra vegada — més de 14 vegades: Lýsi ek í heyranda hljóði að Lögbergi (Declaro això amb veu audible a la Roca de la Llei.) Això no era només una formalitat. Era un requisit legal. Per fer oficial alguna cosa, s'havia de proclamar en veu alta, al Lögberg, on tothom pogués escoltar. Les sagas recordaven no només el que es deia, sinó on i com es deia. El so importava. Ser escoltat importava.");
-    bookInfoShown = true;
-    console.log('✅ Book info shown (VR)');
-  } else if (distbook >= 10) {
-    bookInfoShown = false;
+  if (!isXR && controls && controls.isLocked) {
+    const bookPosition = new THREE.Vector3(66.861, -11, -275.059);
+    const distbook = listenerPos.distanceTo(bookPosition);
+    
+    if (distbook < 10 && !bookInfoShown) {
+      showInfoText("FET #4: Les Sagas Islandeses a Þingvellir", "Històries medievals que van preservar la memòria d'aquest lloc i la seva gent. Escrites segles després dels esdeveniments que descriuen, ofereixen una visió de com funcionava l'Alþing — i de com el so i la paraula eren centrals a la cultura islandesa. A la Brennu-Njáls Saga, una frase apareix una i altra vegada — més de 14 vegades: Lýsi ek í heyranda hljóði að Lögbergi (Declaro això amb veu audible a la Roca de la Llei.) Això no era només una formalitat. Era un requisit legal. Per fer oficial alguna cosa, s'havia de proclamar en veu alta, al Lögberg, on tothom pogués escoltar. Les sagas recordaven no només el que es deia, sinó on i com es deia. El so importava. Ser escoltat importava.", "images/book.jpeg");
+      bookInfoShown = true;
+      console.log('✅ Book info shown');
+    } else if (distbook >= 10) {
+      bookInfoShown = false;
+    }
   }
-
-
 
   if (balloonSource && balloonSound && balloonSound.buffer) {
     const dist = listenerPos.distanceTo(balloonSource.position);
-    if (dist < 10 && !balloonInfoShown && !isXR) {
+    if (dist < 10 && !balloonInfoShown) {
       showInfoText("FET #2: Petjada acústica única d’aquest lloc",  "Quan el globus ha esclatat, el so ha rebotat contra les parets de la falla, s’ha absorbit en la molsa i s’ha escampat per les planes. Aquest eco és únic de Þingvellir — cap altre lloc sona exactament igual. Sigui on siguis, sempre es pot percebre un eco característic causat per les formacions geològiques que modelen l’acústica i la percepció auditiva d’aquest espai. Per als antics islandesos, això significava que les veus es propagaven. Un orador situat a Lögberg podia ser escoltat clarament per milers de persones.", "images/fact2.jpg");
-      balloonInfoShown = true;
-    } else if (dist < 10 && !balloonInfoShown && isXR && !vrInfoVisible) {
-      showVRInfoText("FET #2: Petjada acústica única d’aquest lloc",  "Quan el globus ha esclatat, el so ha rebotat contra les parets de la falla, s’ha absorbit en la molsa i s’ha escampat per les planes. Aquest eco és únic de Þingvellir — cap altre lloc sona exactament igual. Sigui on siguis, sempre es pot percebre un eco característic causat per les formacions geològiques que modelen l’acústica i la percepció auditiva d’aquest espai. Per als antics islandesos, això significava que les veus es propagaven. Un orador situat a Lögberg podia ser escoltat clarament per milers de persones.");
       balloonInfoShown = true;
     } else if (dist >= 10) {
       balloonInfoShown = false;
@@ -1063,16 +879,12 @@ function animate() {
     }
   }
 
-  if (speakerSource) {
+  if (!isXR && controls && controls.isLocked && speakerSource) {
     const distspeaker = listenerPos.distanceTo(speakerSource.position);
-    if (distspeaker < 7 && !speakerInfoShown && !isXR && controls && controls.isLocked) {
+    if (distspeaker < 7 && !speakerInfoShown) {
       showInfoText("FET #3: L'oralitat da Lögberg (Law Rock) 930-1262", "Durant més de 300 anys (930–1262), Islàndia no va tenir rei, ni lleis escrites, ni edificis permanents. En lloc d’això, milers de persones es reunien aquí anualment a l’Alþing. La figura central era el portaveu de la llei, que memoritzava tot el codi legal d’Islàndia i el recitava en veu alta al llarg de tres anys, en parts regulars cada estiu. La justícia no s’escrivia. Es pronunciava, s’escoltava i es recordava. L’acústica de Þingvellir ho feia possible. Per què funcionava? El nivell excepcionalment baix de soroll ambiental, l’absorció acústica de la superfície coberta de molsa i del públic, juntament amb la posició elevada del portaveu de la llei — que permetia que les ones sonores directes arribessin sense obstacles a tots els oients — feien de Lögberg un entorn ideal per a la intel·ligibilitat de la parla.", "images/fact3.jpg");
       speakerInfoShown = true;
-      console.log('âœ… Speaker info shown');
-    } else if (distspeaker < 7 && !speakerInfoShown && isXR && !vrInfoVisible) {
-      showVRInfoText("FET #3: L'oralitat da Lögberg (Law Rock) 930-1262", "Durant més de 300 anys (930–1262), Islàndia no va tenir rei, ni lleis escrites, ni edificis permanents. En lloc d’això, milers de persones es reunien aquí anualment a l’Alþing. La figura central era el portaveu de la llei, que memoritzava tot el codi legal d’Islàndia i el recitava en veu alta al llarg de tres anys, en parts regulars cada estiu. La justícia no s’escrivia. Es pronunciava, s’escoltava i es recordava. L’acústica de Þingvellir ho feia possible. Per què funcionava? El nivell excepcionalment baix de soroll ambiental, l’absorció acústica de la superfície coberta de molsa i del públic, juntament amb la posició elevada del portaveu de la llei — que permetia que les ones sonores directes arribessin sense obstacles a tots els oients — feien de Lögberg un entorn ideal per a la intel·ligibilitat de la parla.");
-      speakerInfoShown = true;
-      console.log('✅ Speaker info shown (VR)');
+      console.log('✅ Speaker info shown');
     } else if (distspeaker >= 7) {
       speakerInfoShown = false;
     }
@@ -1084,19 +896,19 @@ function animate() {
     
     if (!pointActivated[index] && dist < 7) {
       pointActivated[index] = true;
-      console.log(`ðŸŽ¯ Point ${point.id} triggered!`);
+      console.log(`🎯 Point ${point.id} triggered!`);
       
       if (sound && sound.buffer && !sound.isPlaying) {
         sound.play();
         showSubtitle(point.id);
-        console.log(`âœ… Point ${point.id} activated`);
+        console.log(`✅ Point ${point.id} activated`);
         
         sound.onEnded = () => {
           hideSubtitle();
-          console.log(`ðŸŽµ Point ${point.id} audio finished`);
+          console.log(`🎵 Point ${point.id} audio finished`);
         };
       } else if (sound && !sound.buffer) {
-        console.warn(`âš ï¸ Point ${point.id} sound not loaded yet`);
+        console.warn(`⚠️ Point ${point.id} sound not loaded yet`);
       }
     }
     
@@ -1104,7 +916,7 @@ function animate() {
       if (sound && sound.isPlaying) {
         sound.stop();
         hideSubtitle();
-        console.log(`âŒ Point ${point.id} deactivated`);
+        console.log(`❌ Point ${point.id} deactivated`);
       }
       pointActivated[index] = false;
     }
@@ -1147,22 +959,13 @@ function animate() {
     }
   }
 
-  let playerPos;
-  if (isXR) {
-    playerPos = new THREE.Vector3();
-    camera.getWorldPosition(playerPos); // ✅ Posición mundial
-  } else {
-    playerPos = controls ? controls.getObject().position : camera.position;
-  }
+  const playerPos = isXR ? xrRig.position : (controls ? controls.getObject().position : camera.position);
   const moved = playerPos.distanceTo(lastStepPos);
   if (moved > STEP_DISTANCE) {
     const surface = getSurfaceUnderPlayer();
     if (surface) playFootstep(surface);
     lastStepPos.copy(playerPos);
   }
-
-  // Check VR button press to close info panel
-  checkVRButtonPress();
 
   renderer.render(scene, camera);
 }
