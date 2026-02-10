@@ -2,7 +2,9 @@
 
 An immersive 3D/VR web experience exploring the acoustic heritage of Þingvellir, Iceland — site of the Alþing, one of the world's first democratic assemblies (930–1262 AD).
 
-**🔗 Live demo:** [acousticheritagecollective.org/thingvellir/3d-vr](https://acousticheritagecollective.org/thingvellir/3d-vr/)
+**🔗 Live ENG demo:** [acousticheritagecollective.org/thingvellir/3d-vr](https://acousticheritagecollective.org/thingvellir/3d-vr/)
+**🔗 Live CAT demo:** [acousticheritagecollective.org/thingvellir/3d-vr](https://acousticheritagecollective.org/thingvellir/3d-vr/index-cat.html)
+**🔗 Live ISL demo:** [acousticheritagecollective.org/thingvellir/3d-vr](https://acousticheritagecollective.org/thingvellir/3d-vr/index-isl.html)
 
 ![Screenshot of Þingvellir 3D experience](screenshot-cat.png)
 
