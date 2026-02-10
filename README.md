@@ -1,57 +1,118 @@
-# Thingvellir 3D–VR
+# 🇮🇸 Þingvellir 3D — Interactive Archaeoacoustics Experience
 
-This repository contains the source code for a research-based 3D and VR experience
-exploring how the acoustics of Thingvellir may have influenced its historical assemblies,
-oral traditions, and social organization.
+An immersive 3D/VR web experience exploring the acoustic heritage of Þingvellir, Iceland — site of the Alþing, one of the world's first democratic assemblies (930–1262 AD).
 
-The project investigates the relationship between landscape, sound propagation,
-and speech intelligibility at the Alþing assembly site, combining spatial audio,
-3D environments, and interactive navigation.
+**🔗 Live demo:** [acousticheritagecollective.org/thingvellir/3d-vr](https://acousticheritagecollective.org/thingvellir/3d-vr/)
 
-## Online version
+![Screenshot of Þingvellir 3D experience](screenshot-cat.png)
 
-The experience is publicly accessible at:  
-https://acousticheritagecollective.org/thingvellir/3d-vr/
+## About
 
-## About the project
+Could the exceptional acoustics of Þingvellir have influenced its selection as the site for the Alþing? This interactive experience presents the main findings of a hybrid archaeoacoustics study conducted by the **Acoustic Heritage Collective**, combining in-situ measurements and digital simulations.
 
-Thingvellir National Park is a unique natural amphitheater where the Icelandic Alþing
-was established around the year 930. This project explores how the site’s topography
-may have supported oral communication and collective listening practices in a
-pre-literate society.
+Walk between the North American and Eurasian tectonic plates, listen to the echoes of the rift valley, and discover how sound behaves in this UNESCO World Heritage landscape. Explore how its acoustic characteristics may have shaped one of the most significant meeting places in Icelandic history.
 
-The work is part of an ongoing artistic and acoustic research project developed by
-The Acoustic Heritage Collective.
+## Features
 
-## How to Play
+- **3D Terrain Navigation** — Explore a photogrammetric reconstruction of the Þingvellir landscape using keyboard controls or VR controllers
+- **WebXR / VR Support** — Full immersive VR mode via the WebXR API with joystick-based locomotion
+- **Spatial Audio Engine** — Positional 3D audio using the Web Audio API and Three.js `PositionalAudio`, including ambient river sounds, birdsong, and proximity-triggered narrative audio
+- **Narrative Discovery Points** — Six interactive waypoints with narrated audio content placed at historically significant locations
+- **Interactive Facts** — Proximity-triggered info panels presenting research findings on geology, orality at Lögberg, the Icelandic sagas, and Þingvellir's distinctive echo
+- **Real-time Sound Meter** — Live SPL (Sound Pressure Level) display with frequency spectrum visualization
+- **Surface-aware Footsteps** — Adaptive footstep sounds that change based on terrain type (grass, gravel, rock, water)
+- **Impulse Response Playback** — Listen to the actual acoustic impulse response captured at the site
 
-The Thingvellir 3D–VR experience can be accessed either through a desktop web browser
-or using a VR headset. Interaction and controls differ slightly depending on the mode.
+## Tech Stack
+
+| Technology | Purpose |
+|---|---|
+| [Three.js](https://threejs.org/) (r161) | 3D rendering, scene management, lighting |
+| WebXR API | VR headset support |
+| Web Audio API | Spatial audio, sound analysis, SPL metering |
+| GLTFLoader | Loading 3D terrain and object models (.glb) |
+| PointerLockControls | First-person desktop navigation |
+| HTML5 Canvas | Spectrum analyzer visualization |
+
+## Project Structure
+
+```
+├── index.html          # Main HTML entry point with UI overlays
+├── main.js             # Core application logic (scene, audio, controls, VR)
+├── thingvellir.glb     # 3D terrain model (hosted externally)
+├── model.glb           # Geisir model (geological feature)
+├── balloon.glb         # Balloon pop / impulse response trigger
+├── iceland2.glb        # Iceland reference model
+├── speaker.glb         # Speaker model at Lögberg
+├── book.glb            # Book model (sagas reference)
+├── point[1-6].glb      # Narrative waypoint models
+├── speaker[01-06].mp3  # Narrative audio files
+├── geisir.mp3          # Geisir ambient sound
+├── ir.wav              # Impulse response recording
+├── bgeq.jpg            # Equirectangular skybox
+├── steps/              # Footstep audio samples
+│   ├── grass_01-06.mp3
+│   ├── gravel_01-06.mp3
+│   ├── rock_01-06.mp3
+│   └── water_01-06.mp3
+└── images/             # Fact panel images
+    ├── fact1.jpg
+    ├── fact2.jpg
+    ├── fact3.jpg
+    └── book.jpeg
+```
+
+## Controls
 
 ### Desktop (Web Browser)
-
-- The player is controlled using the **keyboard arrow keys**.
-- Use the **arrow keys** to move forward, backward, and rotate within the environment.
-- Press **ESC** to pause the experience.
-
-For the best experience, the use of **headphones** is recommended.
+| Key | Action |
+|---|---|
+| **W / ↑** | Move forward |
+| **S / ↓** | Move backward |
+| **A / ←** | Rotate left |
+| **D / →** | Rotate right |
+| **Mouse** | Look around (pointer lock) |
+| **Space** | Dismiss info panel |
+| **ESC** | Pause / unlock pointer |
 
 ### VR Mode
+- **Joystick / Thumbstick** — Navigate the environment
+- **Controller button** — Dismiss info panels
+- Ensure system audio output is routed to the VR headset before starting
 
-- Make sure that the **system audio output is assigned to the VR headset** before launching the experience.
-- The player moves using the **joystick / thumbstick on the VR controllers**.
-- Movement and orientation are controlled through the headset and controllers, allowing for immersive navigation of the environment.
+## Getting Started
 
-For optimal spatial audio perception, ensure that the VR headset is properly fitted and calibrated.
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/thingvellir-3d-vr.git
+   cd thingvellir-3d-vr
+   ```
 
+2. Serve locally with any static HTTP server (required for ES modules and audio):
+   ```bash
+   npx serve .
+   # or
+   python3 -m http.server 8000
+   ```
+
+3. Open `http://localhost:8000` in a WebXR-compatible browser (Chrome, Edge, or Firefox).
+
+4. For VR: connect a compatible headset and click the **"Enter VR"** button.
+
+## Research Context
+
+This experience is part of **KAFLI 141**, a research chapter by the Acoustic Heritage Collective investigating the role of acoustics in the selection and use of Þingvellir as Iceland's parliamentary assembly site. The study combines:
+
+- **In-situ acoustic measurements** at the Þingvellir site
+- **Digital acoustic simulations** of the landscape
+- **Historical and literary analysis** of the Icelandic sagas
+
+Key findings presented in the experience include the exceptionally low ambient noise levels, the distinctive echo produced by the rift valley's geological formations, and how the elevated position of the Law Speaker at Lögberg enabled speech intelligibility across large audiences.
+
+## Credits
+
+Developed by the [Acoustic Heritage Collective](https://acousticheritagecollective.org/)
 
 ## License
 
-### Code
-The source code in this repository is licensed under the MIT License.
-
-### Assets
-Audio recordings, 3D models, textures, and textual content are licensed under
-Creative Commons Attribution–NonCommercial–NoDerivatives 4.0 International (CC BY-NC-ND 4.0).
-
-© 2026 The Acoustic Heritage Collective
+Please contact the Acoustic Heritage Collective for licensing and usage information.
